@@ -1,0 +1,119 @@
+﻿<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Test Agent - Specs</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>API Test Agent</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/settings">Settings</a>
+        </nav>
+    </header>
+
+    <section class="card">
+        <h2>Upload API Spec</h2>
+        <form id="upload-form">
+            <label>Source Type
+                <select id="sourceType" name="sourceType">
+                    <option value="openapi">OpenAPI / Swagger</option>
+                    <option value="postman">Postman Collection</option>
+                </select>
+            </label>
+            <label>Spec File
+                <input type="file" id="specFile" name="file" required accept=".json,.yaml,.yml" />
+            </label>
+            <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+                <button type="submit" id="upload-btn" class="btn-action">&#8593; Upload &amp; Ingest</button>
+                <span id="upload-msg"></span>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Known Specs</h2>
+        <table>
+            <thead><tr><th>Spec ID</th><th>Name</th><th>Source</th><th>Imported</th><th>Actions</th></tr></thead>
+            <tbody id="spec-tbody">
+            <tr th:each="spec : ${specs}">
+                <td th:text="${spec.specId}">spec-id</td>
+                <td th:text="${spec.name}">name</td>
+                <td th:text="${spec.sourceType}">source</td>
+                <td th:text="${spec.importedAt}">-</td>
+                <td>
+                    <form th:action="'/ui/specs/' + ${spec.specId} + '/generate'" method="post" style="display:inline">
+                        <button type="submit" class="btn-action">Generate Plan</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+<script>
+document.getElementById('upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('upload-btn');
+    const msg = document.getElementById('upload-msg');
+    const file = document.getElementById('specFile').files[0];
+    if (!file) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
+    msg.textContent = '';
+    msg.className = '';
+
+    const fd = new FormData();
+    fd.append('sourceType', document.getElementById('sourceType').value);
+    fd.append('file', file);
+
+    fetch('/api/specs', { method: 'POST', body: fd })
+        .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+        .then(spec => {
+            msg.textContent = '✓ Ingested: ' + spec.name + ' (' + spec.specId + ')';
+            msg.className = 'msg-ok';
+            document.getElementById('upload-form').reset();
+            refreshTable();
+        })
+        .catch(err => {
+            msg.textContent = '✗ ' + (err || 'Upload failed');
+            msg.className = 'msg-err';
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = '↑ Upload & Ingest';
+        });
+});
+
+function refreshTable() {
+    fetch('/api/specs')
+        .then(r => r.json())
+        .then(specs => {
+            const tbody = document.getElementById('spec-tbody');
+            tbody.innerHTML = specs.map(s => `
+                <tr>
+                    <td>${s.specId}</td>
+                    <td>${s.name || '-'}</td>
+                    <td>${s.sourceType || '-'}</td>
+                    <td>${s.importedAt ? new Date(s.importedAt).toLocaleString() : '-'}</td>
+                    <td>
+                        <form action="/ui/specs/${s.specId}/generate" method="post" style="display:inline">
+                            <button type="submit" class="btn-action">Generate Plan</button>
+                        </form>
+                    </td>
+                </tr>`).join('');
+        });
+}
+</script>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,200 @@
+openapi: 3.0.3
+info:
+  title: API Test Agent Local API
+  version: 1.0.0
+  description: Local web API contract for spec ingestion, plan management, execution, and reporting.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/specs:
+    post:
+      summary: Ingest API specification
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                sourceType:
+                  type: string
+                  enum: [openapi, postman, manual]
+                file:
+                  type: string
+                  format: binary
+                manualSpec:
+                  type: string
+      responses:
+        '201':
+          description: Spec ingested and normalized
+  /api/specs/{specId}:
+    get:
+      summary: Get normalized spec
+      parameters:
+        - in: path
+          name: specId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Normalized spec payload
+        '404':
+          description: Spec not found
+  /api/plans:
+    post:
+      summary: Generate or import a test plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/GeneratePlanRequest'
+                - $ref: '#/components/schemas/ImportPlanRequest'
+      responses:
+        '201':
+          description: Plan created
+    get:
+      summary: List plans
+      responses:
+        '200':
+          description: Plan summary list
+  /api/plans/{planId}:
+    get:
+      summary: Get plan
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plan details
+        '404':
+          description: Plan not found
+    patch:
+      summary: Update plan metadata or test case entries
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanPatchRequest'
+      responses:
+        '200':
+          description: Plan updated
+    delete:
+      summary: Archive or delete a plan
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Plan removed
+  /api/plans/{planId}/runs:
+    post:
+      summary: Execute plan
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+      responses:
+        '202':
+          description: Run started
+  /api/runs/{runId}:
+    get:
+      summary: Get run results
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Run results and summary
+        '404':
+          description: Run not found
+  /api/runs/{runId}/report:
+    post:
+      summary: Generate report artifacts
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Report generation started or completed
+  /api/runs/{runId}/report.md:
+    get:
+      summary: Download markdown report
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Markdown report
+  /api/runs/{runId}/report.html:
+    get:
+      summary: Download html report
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: HTML report
+components:
+  schemas:
+    GeneratePlanRequest:
+      type: object
+      required: [mode, specId, endpointId]
+      properties:
+        mode:
+          type: string
+          enum: [generate]
+        specId:
+          type: string
+        endpointId:
+          type: string
+    ImportPlanRequest:
+      type: object
+      required: [mode, plan]
+      properties:
+        mode:
+          type: string
+          enum: [import]
+        plan:
+          type: object
+    PlanPatchRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, archived]
+        testCases:
+          type: array
+          items:
+            type: object

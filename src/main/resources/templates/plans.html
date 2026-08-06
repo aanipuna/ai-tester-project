@@ -1,0 +1,67 @@
+﻿<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Test Agent - Plans</title>
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Plans</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/settings">Settings</a>
+        </nav>
+    </header>
+
+    <section class="card">
+        <h2>Generate Plan from Spec</h2>
+        <form id="gen-form">
+            <label>Spec
+                <select id="gen-spec-select" required>
+                    <option value="" disabled selected>— select a spec —</option>
+                    <option th:each="spec : ${specs}" th:value="${spec.specId}" th:text="${spec.name} + ' (' + ${spec.specId} + ')'" />
+                </select>
+            </label>
+            <button type="submit" class="btn-action">Generate Plan</button>
+        </form>
+        <script>
+        document.getElementById('gen-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const specId = document.getElementById('gen-spec-select').value;
+            if (!specId) return;
+            fetch('/api/plans', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({mode:'generate', specId: specId}) })
+            .then(r => r.ok ? location.reload() : r.text().then(t => alert('Error: ' + t)));
+        });
+        </script>
+    </section>
+
+    <section class="card">
+        <h2>Existing Plans</h2>
+        <table>
+            <thead><tr><th>Plan ID</th><th>Source Endpoint</th><th>Base URL</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+            <tr th:each="plan : ${plans}">
+                <td th:text="${plan.planId}">plan-id</td>
+                <td th:text="${plan.sourceEndpoint}">endpoint</td>
+                <td th:text="${plan.baseUrl}">url</td>
+                <td><span class="badge" th:classappend="${plan.status == 'active'} ? 'badge-ok' : 'badge-off'" th:text="${plan.status}">status</span></td>
+                <td>
+                    <a th:href="'/plans/' + ${plan.planId}" class="btn-view">Details</a>
+                    <form th:action="'/ui/plans/' + ${plan.planId} + '/run'" method="post" style="display:inline">
+                        <button type="submit" class="btn-run">&#9654; Run</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</div>
+</body>
+</html>
+

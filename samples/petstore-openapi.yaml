@@ -1,0 +1,30 @@
+openapi: 3.0.3
+info:
+  title: Pet API Sample
+  version: 1.0.0
+servers:
+  - url: https://example.org
+paths:
+  /pets:
+    get:
+      summary: List pets
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create pet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                age:
+                  type: integer
+              required: [name]
+      responses:
+        '201':
+          description: Created

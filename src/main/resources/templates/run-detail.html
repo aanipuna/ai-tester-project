@@ -1,0 +1,87 @@
+﻿<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="'Run ' + ${run.runId}">Run Detail</title>
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Run Detail</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/settings">Settings</a>
+        </nav>
+    </header>
+
+    <section class="card">
+        <h2 th:text="${run.runId}">run-id</h2>
+        <dl class="meta-grid">
+            <dt>Plan ID</dt><dd th:text="${run.planId}">-</dd>
+            <dt>Triggered By</dt><dd th:text="${run.triggeredBy}">-</dd>
+            <dt>Started</dt><dd th:text="${run.startedAt}">-</dd>
+            <dt>Finished</dt><dd th:text="${run.finishedAt}">-</dd>
+            <dt>Total</dt><dd th:text="${run.summary?.total}">-</dd>
+            <dt>Passed</dt><dd><span class="badge badge-ok" th:text="${run.summary?.passed}">-</span></dd>
+            <dt>Failed</dt><dd><span class="badge badge-fail" th:text="${run.summary?.failed}">-</span></dd>
+            <dt>Errors</dt><dd><span class="badge badge-err" th:text="${run.summary?.errors}">-</span></dd>
+        </dl>
+        <div style="margin-top:12px;display:flex;gap:8px">
+            <form th:action="'/ui/runs/' + ${run.runId} + '/report'" method="post" style="display:inline">
+                <button type="submit" class="btn-action">Build Report</button>
+            </form>
+            <a th:href="'/api/runs/' + ${run.runId} + '/report.html'" class="btn-view" target="_blank">View HTML Report</a>
+            <a th:href="'/api/runs/' + ${run.runId} + '/report.md'" class="btn-dl" download>&#11015; Download MD</a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Test Case Results</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Case ID</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>HTTP</th>
+                    <th>Time (ms)</th>
+                    <th>Request</th>
+                    <th>Request Body</th>
+                    <th>Response Body</th>
+                    <th>Failure</th>
+                </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${run.results}">
+                <td th:text="${r.testCaseId}">id</td>
+                <td><span class="badge badge-cat" th:text="${r.category}">cat</span></td>
+                <td>
+                    <span class="badge"
+                          th:classappend="${r.status == 'pass'} ? 'badge-ok' : (${r.status == 'fail'} ? 'badge-fail' : (${r.status == 'error'} ? 'badge-err' : 'badge-off'))"
+                          th:text="${r.status}">-</span>
+                </td>
+                <td th:text="${r.httpStatus}">-</td>
+                <td th:text="${r.responseTimeMs != null} ? ${r.responseTimeMs} + ' ms' : '-'">-</td>
+                <td class="snippet" th:text="${r.requestUrl}">-</td>
+                <td><pre class="snippet-pre" th:if="${r.requestBody != null}" th:text="${r.requestBody}"></pre>
+                    <span th:if="${r.requestBody == null}">â€”</span></td>
+                <td><pre class="snippet-pre" th:if="${r.responseSnapshot != null}" th:text="${r.responseSnapshot}"></pre>
+                    <span th:if="${r.responseSnapshot == null}">â€”</span></td>
+                <td class="failure-reason" th:text="${r.failureReason}">-</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card" th:if="${reportNarrative != null}">
+        <h2>Report Narrative</h2>
+        <pre class="narrative" th:text="${reportNarrative}">narrative</pre>
+    </section>
+</div>
+</body>
+</html>
+

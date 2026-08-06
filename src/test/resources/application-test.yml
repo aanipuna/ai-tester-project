@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: api-test-agent-test
+  main:
+    banner-mode: off
+
+api-test-agent:
+  data-dir: ./target/test-data
+  storage:
+    schema-version: "1.0"
+
+logging:
+  level:
+    root: WARN
+    com.dialog.dtg: DEBUG

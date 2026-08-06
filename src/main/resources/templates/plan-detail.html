@@ -1,0 +1,215 @@
+﻿<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="'Plan ' + ${plan.planId}">Plan Detail</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+        .edit-input  { width:100%; padding:4px 6px; border:1px solid #d3d8da; border-radius:4px; font-size:0.85rem; }
+        .edit-select { padding:4px 6px; border:1px solid #d3d8da; border-radius:4px; font-size:0.85rem; }
+        .edit-area   { width:100%; min-height:48px; padding:4px 6px; border:1px solid #d3d8da; border-radius:4px; font-size:0.8rem; font-family:monospace; resize:vertical; }
+        .toolbar     { display:flex; gap:8px; margin-top:12px; align-items:center; }
+        #view-mode, #edit-mode { display:block; }
+        #edit-mode   { display:none; }
+        .save-bar    { position:sticky; bottom:0; background:#fff; border-top:1px solid #d3d8da; padding:12px 0; display:flex; gap:8px; }
+        .msg-ok      { color:#155724; font-weight:600; }
+        .msg-err     { color:#721c24; font-weight:600; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Plan Detail</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/settings">Settings</a>
+        </nav>
+    </header>
+
+    <!-- plan data as JSON for JS -->
+    <script th:inline="javascript">
+        const PLAN_ID  = /*[[${plan.planId}]]*/ '';
+        const PLAN_RAW = /*[[${planJson}]]*/ null;
+    </script>
+
+    <!-- summary card -->
+    <section class="card">
+        <h2 th:text="${plan.planId}">plan-id</h2>
+        <dl class="meta-grid" id="meta-view">
+            <dt>Source Endpoint</dt><dd th:text="${plan.sourceEndpoint}">-</dd>
+            <dt>Base URL</dt>        <dd id="v-baseUrl" th:text="${plan.baseUrl}">-</dd>
+            <dt>Status</dt>
+            <dd><span class="badge" th:classappend="${plan.status == 'active'} ? 'badge-ok' : 'badge-off'" th:text="${plan.status}">-</span></dd>
+            <dt>Test Cases</dt>      <dd th:text="${plan.testCases.size()}">0</dd>
+        </dl>
+        <div class="toolbar">
+            <form th:action="'/ui/plans/' + ${plan.planId} + '/run'" method="post" style="display:inline">
+                <button type="submit" class="btn-run">&#9654; Run This Plan</button>
+            </form>
+            <button id="btn-edit"   class="btn-action" onclick="enterEdit()">&#9998; Edit Plan</button>
+            <button id="btn-cancel" class="btn-disable" style="display:none" onclick="cancelEdit()">Cancel</button>
+            <span id="save-msg"></span>
+        </div>
+    </section>
+
+    <!-- VIEW mode table -->
+    <section class="card" id="view-mode">
+        <h2>Test Cases</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th><th>Category</th><th>Method</th><th>Path</th>
+                    <th>Exp&nbsp;Status</th><th>Description</th><th>Body</th>
+                    <th>Timeout&nbsp;(ms)</th><th>Enabled</th><th>Toggle</th>
+                </tr>
+            </thead>
+            <tbody>
+            <tr th:each="tc : ${plan.testCases}" th:classappend="${!tc.enabled} ? 'row-disabled'">
+                <td th:text="${tc.id}">-</td>
+                <td><span class="badge badge-cat" th:text="${tc.category}">-</span></td>
+                <td><code th:text="${tc.request?.method}">GET</code></td>
+                <td><code th:text="${tc.request?.path}">/</code></td>
+                <td th:text="${tc.expectedStatus}">200</td>
+                <td th:text="${tc.description}">-</td>
+                <td class="snippet" th:text="${tc.request?.body}">-</td>
+                <td th:text="${tc.timeoutMs}">10000</td>
+                <td><span class="badge" th:classappend="${tc.enabled} ? 'badge-ok' : 'badge-off'"
+                          th:text="${tc.enabled} ? 'yes' : 'no'">-</span></td>
+                <td>
+                    <form th:action="'/ui/plans/' + ${plan.planId} + '/cases/' + ${tc.id} + '/toggle'" method="post" style="display:inline">
+                        <button type="submit" th:class="${tc.enabled} ? 'btn-disable' : 'btn-enable'"
+                                th:text="${tc.enabled} ? 'Disable' : 'Enable'">Toggle</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- EDIT mode -->
+    <section class="card" id="edit-mode">
+        <h2>Edit Plan</h2>
+
+        <div style="margin-bottom:14px">
+            <label style="font-weight:600">Base URL
+                <input id="edit-baseUrl" class="edit-input" style="max-width:360px"
+                       th:value="${plan.baseUrl}" placeholder="https://…" />
+            </label>
+        </div>
+
+        <div style="overflow-x:auto">
+        <table id="edit-table">
+            <thead>
+                <tr>
+                    <th>ID</th><th>Enabled</th><th>Category</th><th>Method</th>
+                    <th>Path</th><th>Exp&nbsp;Status</th><th>Description</th>
+                    <th>Request Body</th><th>Timeout&nbsp;(ms)</th>
+                </tr>
+            </thead>
+            <tbody>
+            <tr th:each="tc,iter : ${plan.testCases}"
+                th:data-index="${iter.index}"
+                th:data-id="${tc.id}"
+                th:data-headers="${tc.request?.headers}"
+                th:data-queryparams="${tc.request?.queryParams}">
+                <td th:text="${tc.id}">-</td>
+                <td style="text-align:center">
+                    <input type="checkbox" th:checked="${tc.enabled}" class="edit-enabled" />
+                </td>
+                <td>
+                    <select class="edit-select edit-category">
+                        <option th:each="cat : ${ {'positive','negative','boundary','auth','idempotency'} }"
+                                th:value="${cat}" th:text="${cat}"
+                                th:selected="${cat == tc.category}"></option>
+                    </select>
+                </td>
+                <td>
+                    <select class="edit-select edit-method">
+                        <option th:each="m : ${ {'GET','POST','PUT','PATCH','DELETE'} }"
+                                th:value="${m}" th:text="${m}"
+                                th:selected="${m == tc.request?.method}"></option>
+                    </select>
+                </td>
+                <td><input class="edit-input edit-path" th:value="${tc.request?.path}" style="min-width:120px" /></td>
+                <td><input type="number" class="edit-input edit-status" th:value="${tc.expectedStatus}" style="width:70px" /></td>
+                <td><input class="edit-input edit-desc" th:value="${tc.description}" style="min-width:160px" /></td>
+                <td><textarea class="edit-area edit-body" th:text="${tc.request?.body}" style="min-width:140px"></textarea></td>
+                <td><input type="number" class="edit-input edit-timeout" th:value="${tc.timeoutMs}" style="width:80px" /></td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div class="save-bar">
+            <button class="btn-run" onclick="savePlan()">&#10003; Save Changes</button>
+            <button class="btn-disable" onclick="cancelEdit()">Cancel</button>
+            <span id="save-msg2"></span>
+        </div>
+    </section>
+</div>
+
+<script>
+function enterEdit() {
+    document.getElementById('view-mode').style.display = 'none';
+    document.getElementById('edit-mode').style.display = 'block';
+    document.getElementById('btn-edit').style.display = 'none';
+    document.getElementById('btn-cancel').style.display = '';
+}
+function cancelEdit() {
+    document.getElementById('view-mode').style.display = 'block';
+    document.getElementById('edit-mode').style.display = 'none';
+    document.getElementById('btn-edit').style.display = '';
+    document.getElementById('btn-cancel').style.display = 'none';
+}
+
+function savePlan() {
+    const rows = document.querySelectorAll('#edit-table tbody tr');
+    const testCases = Array.from(rows).map(row => {
+        const req = {
+            method:      row.querySelector('.edit-method').value,
+            path:        row.querySelector('.edit-path').value,
+            body:        row.querySelector('.edit-body').value.trim() || null,
+            headers:     {},
+            queryParams: {}
+        };
+        return {
+            id:              row.dataset.id,
+            enabled:         row.querySelector('.edit-enabled').checked,
+            category:        row.querySelector('.edit-category').value,
+            description:     row.querySelector('.edit-desc').value,
+            request:         req,
+            expectedStatus:  parseInt(row.querySelector('.edit-status').value) || 200,
+            expectedBehavior: row.querySelector('.edit-desc').value,
+            timeoutMs:       parseInt(row.querySelector('.edit-timeout').value) || 10000
+        };
+    });
+
+    const payload = {
+        baseUrl:   document.getElementById('edit-baseUrl').value.trim() || null,
+        testCases: testCases
+    };
+
+    const msg  = document.getElementById('save-msg');
+    const msg2 = document.getElementById('save-msg2');
+    const setMsg = (txt, ok) => {
+        [msg, msg2].forEach(el => { el.textContent = txt; el.className = ok ? 'msg-ok' : 'msg-err'; });
+    };
+
+    fetch('/api/plans/' + PLAN_ID, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.ok
+        ? (setMsg('Saved!', true), setTimeout(() => location.reload(), 800))
+        : r.text().then(t => setMsg('Error: ' + t, false))
+    )
+    .catch(e => setMsg('Error: ' + e.message, false));
+}
+</script>
+</body>
+</html>
+

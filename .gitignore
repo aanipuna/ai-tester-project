@@ -1,0 +1,33 @@
+target/
+.idea/
+.vscode/
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Java/Maven
+*.class
+*.jar
+*.war
+*.ear
+
+# Local runtime data (specs, plans, runs, config with secrets)
+data/
+
+# Environment and secrets — never commit real keys
+.env
+.env.*
+application-local.yml
+application-local.yaml
+*.secret.yml
+*.secret.yaml
+
+# Lock files created by the app at runtime
+*.lck
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini

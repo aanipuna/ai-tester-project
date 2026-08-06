@@ -1,0 +1,81 @@
+﻿<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Test Agent - Runs</title>
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Runs</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/settings">Settings</a>
+        </nav>
+    </header>
+
+    <section class="card">
+        <h2>Run a Plan</h2>
+        <form id="run-form">
+            <label>Plan
+                <select id="run-plan-select" required>
+                    <option value="" disabled selected>— select a plan —</option>
+                    <option th:each="plan : ${plans}" th:value="${plan.planId}" th:text="${plan.sourceEndpoint} + ' (' + ${plan.planId} + ')'" />
+                </select>
+            </label>
+            <button type="submit" class="btn-run">&#9654; Run Plan</button>
+        </form>
+        <script>
+        document.getElementById('run-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const planId = document.getElementById('run-plan-select').value;
+            if (!planId) return;
+            const btn = e.submitter; btn.disabled = true; btn.textContent = 'Running…';
+            fetch('/api/plans/' + planId + '/runs', { method:'POST' })
+            .then(r => r.ok ? location.reload() : r.text().then(t => { alert('Error: ' + t); btn.disabled=false; btn.textContent='▶ Run Plan'; }));
+        });
+        </script>
+    </section>
+
+    <section class="card">
+        <h2>Run History</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Run ID</th>
+                    <th>Plan ID</th>
+                    <th>Total</th>
+                    <th>Passed</th>
+                    <th>Failed</th>
+                    <th>Errors</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            <tr th:each="run : ${runs}">
+                <td th:text="${run.runId}">run-id</td>
+                <td th:text="${run.planId}">plan-id</td>
+                <td th:text="${run.summary?.total}">-</td>
+                <td><span class="badge badge-ok" th:text="${run.summary?.passed}">-</span></td>
+                <td><span class="badge badge-fail" th:text="${run.summary?.failed}">-</span></td>
+                <td><span th:text="${run.summary?.errors}">-</span></td>
+                <td class="actions">
+                    <a th:href="'/runs/' + ${run.runId}" class="btn-view">Details</a>
+                    <form th:action="'/ui/runs/' + ${run.runId} + '/report'" method="post" style="display:inline">
+                        <button type="submit" class="btn-action">Build Report</button>
+                    </form>
+                    <a th:href="'/api/runs/' + ${run.runId} + '/report.html'" class="btn-view" target="_blank">View</a>
+                    <a th:href="'/api/runs/' + ${run.runId} + '/report.md'" class="btn-dl" download>&#11015; MD</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</div>
+</body>
+</html>
+

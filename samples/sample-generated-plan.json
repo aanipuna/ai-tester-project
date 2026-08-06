@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1.0",
+  "planId": "plan-sample-001",
+  "sourceEndpoint": "POST /pets",
+  "testCases": [
+    {
+      "id": "TC-001",
+      "category": "positive",
+      "description": "Create pet with valid required field",
+      "request": {
+        "method": "POST",
+        "path": "/pets",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "queryParams": {},
+        "body": {
+          "name": "Fluffy",
+          "age": 2
+        }
+      },
+      "expectedStatus": 201,
+      "expectedBehavior": "Resource is created when required fields are valid"
+    },
+    {
+      "id": "TC-002",
+      "category": "negative",
+      "description": "Missing required name should fail",
+      "request": {
+        "method": "POST",
+        "path": "/pets",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "queryParams": {},
+        "body": {
+          "age": 2
+        }
+      },
+      "expectedStatus": 400,
+      "expectedBehavior": "Validation error when required field is missing"
+    },
+    {
+      "id": "TC-003",
+      "category": "boundary",
+      "description": "Boundary input for name length",
+      "request": {
+        "method": "POST",
+        "path": "/pets",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "queryParams": {},
+        "body": {
+          "name": "A",
+          "age": 0
+        }
+      },
+      "expectedStatus": 201,
+      "expectedBehavior": "Minimum boundary values are accepted"
+    }
+  ]
+}

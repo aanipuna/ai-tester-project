@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Test Agent - Settings</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+        .template-area { width:100%; min-height:320px; font-family:monospace; font-size:0.85rem;
+                         padding:10px; border:1px solid #d3d8da; border-radius:8px; resize:vertical; line-height:1.5; }
+        .hint { font-size:0.8rem; color:#555; margin-top:4px; }
+        .hint code { background:#eee; padding:1px 4px; border-radius:3px; }
+        .save-row { display:flex; gap:10px; align-items:center; margin-top:16px; }
+        .msg-ok  { color:#155724; font-weight:600; }
+        .msg-err { color:#721c24; font-weight:600; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Settings</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/settings">Settings</a>
+        </nav>
+    </header>
+
+    <section class="card">
+        <h2>Plan Generation Prompt Template</h2>
+        <p class="hint">
+            Used when generating test cases via AI. Available variables:
+            <code>{{method}}</code> <code>{{path}}</code> <code>{{authType}}</code>
+            <code>{{parameters}}</code> <code>{{expectedStatus}}</code> <code>{{expectedSchema}}</code>
+        </p>
+        <textarea id="planTemplate" class="template-area"
+                  th:text="${templates.planGenerationTemplate}"></textarea>
+        <button class="btn-disable" style="margin-top:6px;font-size:0.8rem"
+                onclick="resetPlan()">Reset to Default</button>
+    </section>
+
+    <section class="card">
+        <h2>Report Narrative Prompt Template</h2>
+        <p class="hint">
+            Used when building the AI narrative summary for a run. Available variables:
+            <code>{{passed}}</code> <code>{{failed}}</code> <code>{{errors}}</code>
+            <code>{{slow}}</code> <code>{{caseResults}}</code>
+        </p>
+        <textarea id="reportTemplate" class="template-area"
+                  th:text="${templates.reportNarrativeTemplate}"></textarea>
+        <button class="btn-disable" style="margin-top:6px;font-size:0.8rem"
+                onclick="resetReport()">Reset to Default</button>
+    </section>
+
+    <div class="save-row">
+        <button class="btn-run" onclick="saveTemplates()">&#10003; Save Templates</button>
+        <span id="save-msg"></span>
+    </div>
+</div>
+
+<script>
+const DEFAULT_PLAN_TEXT = `You are an API test scenario generator. Given the API specification below, generate a comprehensive test plan.
+
+## API Specification
+Endpoint: {{method}} {{path}}
+Auth type: {{authType}}
+Parameters:
+{{parameters}}Expected success response: {{expectedStatus}} — {{expectedSchema}}
+
+## Instructions
+Generate test cases covering ALL of these categories:
+1. POSITIVE — valid requests using realistic sample data for every required and optional field combination
+2. NEGATIVE — missing required fields (one omitted at a time), wrong data types, malformed values
+3. BOUNDARY — min/max length strings, min/max numeric values, empty strings, zero, negative numbers where applicable
+4. AUTH — missing token, expired/invalid token, insufficient scope/role (only if authType != none)
+5. IDEMPOTENCY/DUPLICATE — repeated identical requests where relevant (e.g. POST creating a resource)
+
+For each test case, infer a realistic expected HTTP status code based on standard REST conventions and the constraints given.
+
+## Output format
+Return ONLY valid JSON, no markdown fences, no commentary, matching exactly this schema:
+{
+  "planId": "string",
+  "sourceEndpoint": "string",
+  "testCases": [
+    {
+      "id": "string (e.g. TC-001)",
+      "category": "positive | negative | boundary | auth | idempotency",
+      "description": "string",
+      "request": { "method": "string", "path": "string", "headers": {}, "queryParams": {}, "body": {} },
+      "expectedStatus": number,
+      "expectedBehavior": "string"
+    }
+  ]
+}
+Generate between 8 and 20 test cases depending on parameter complexity. Do not skip any required field for negative testing.`;
+
+const DEFAULT_REPORT_TEXT =
+`Summarize this API test run in 3-5 sentences. Focus on failures and errors.
+Passed={{passed}} Failed={{failed}} Errors={{errors}} Slow={{slow}}
+
+Case Results:
+{{caseResults}}`;
+
+function resetPlan()   { document.getElementById('planTemplate').value   = DEFAULT_PLAN_TEXT; }
+function resetReport() { document.getElementById('reportTemplate').value = DEFAULT_REPORT_TEXT; }
+
+function saveTemplates() {
+    const payload = {
+        planGenerationTemplate:   document.getElementById('planTemplate').value,
+        reportNarrativeTemplate:  document.getElementById('reportTemplate').value
+    };
+    const msg = document.getElementById('save-msg');
+    fetch('/api/templates', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.ok
+        ? (msg.textContent = 'Saved!', msg.className = 'msg-ok')
+        : r.text().then(t => { msg.textContent = 'Error: ' + t; msg.className = 'msg-err'; })
+    )
+    .catch(e => { msg.textContent = 'Error: ' + e.message; msg.className = 'msg-err'; });
+}
+</script>
+</body>
+</html>
