@@ -1,12 +1,12 @@
 ﻿:root {
-    --primary: #3b82f6;
-    --primary-dark: #2563eb;
-    --primary-light: #eff6ff;
-    --success: #22c55e;
+    --primary: #60a5fa;
+    --primary-dark: #3b82f6;
+    --primary-light: #f0f9ff;
+    --success: #4ade80;
     --success-light: #f0fdf4;
-    --danger: #f87171;
-    --danger-light: #fef2f2;
-    --warning: #fb923c;
+    --danger: #fca5a5;
+    --danger-light: #fff5f5;
+    --warning: #fdba74;
     --warning-light: #fff7ed;
     --neutral-50: #f8fafc;
     --neutral-100: #f1f5f9;
@@ -18,13 +18,13 @@
     --neutral-700: #334155;
     --neutral-800: #1e293b;
     --neutral-900: #0f172a;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
     --bg-color: #f0f9ff;
     --text-color: #334155;
-    --card-bg: rgba(255, 255, 255, 0.78);
-    --card-border: rgba(255, 255, 255, 0.4);
+    --card-bg: rgba(255, 255, 255, 0.82);
+    --card-border: rgba(255, 255, 255, 0.5);
 }
 
 body.dark-mode {
