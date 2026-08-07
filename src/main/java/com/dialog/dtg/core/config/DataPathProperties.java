@@ -40,6 +40,14 @@ public class DataPathProperties {
         return dataDir.resolve("runs");
     }
 
+    public Path workflowsDir() {
+        return dataDir.resolve("workflows");
+    }
+
+    public Path workflowRunsDir() {
+        return dataDir.resolve("workflow-runs");
+    }
+
     public static class Storage {
 
         @NotBlank

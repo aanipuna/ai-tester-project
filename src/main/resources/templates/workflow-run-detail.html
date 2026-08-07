@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="'Run ' + ${run.workflowRunId}">Workflow Run Detail</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+        .step-result { background:rgba(255,255,255,0.55); border:1px solid var(--card-border); border-radius:12px; padding:16px; margin-bottom:12px; }
+        body.dark-mode .step-result { background:rgba(30,41,59,0.55); border-color:rgba(51,65,85,0.5); }
+        .step-result.pass  { border-left:4px solid #4ade80; }
+        .step-result.fail  { border-left:4px solid #fca5a5; }
+        .step-result.skipped { border-left:4px solid #94a3b8; opacity:0.75; }
+        .step-result.error { border-left:4px solid #fb923c; }
+        .field-label { font-size:11px; font-weight:600; color:var(--neutral-500); text-transform:uppercase; margin-bottom:4px; }
+        .kv-row { display:flex; gap:8px; align-items:baseline; font-size:13px; margin-bottom:4px; flex-wrap:wrap; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Workflow Run</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/workflows">Workflows</a>
+            <a href="/settings">Settings</a>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">🌙</button>
+        </nav>
+    </header>
+
+    <section class="card">
+        <h2 th:text="${run.workflowName}">Workflow Name</h2>
+        <dl class="meta-grid">
+            <dt>Run ID</dt><dd><code th:text="${run.workflowRunId}">-</code></dd>
+            <dt>Workflow</dt><dd><a th:href="'/workflows/' + ${run.workflowId}" th:text="${run.workflowId}">-</a></dd>
+            <dt>Started</dt><dd th:text="${run.startedAt}">-</dd>
+            <dt>Finished</dt><dd th:text="${run.finishedAt}">-</dd>
+            <dt>Status</dt><dd>
+                <span class="badge"
+                    th:classappend="${run.status == 'passed'} ? 'badge-ok' : (${run.status == 'failed'} ? 'badge-fail' : (${run.status == 'partial'} ? 'badge-off' : 'badge-err'))"
+                    th:text="${run.status}">-</span>
+            </dd>
+            <dt>Steps</dt><dd th:text="${run.stepResults.size()}">0</dd>
+        </dl>
+    </section>
+
+    <section class="card">
+        <h2>Step Results</h2>
+        <div th:each="step, iter : ${run.stepResults}"
+             th:class="'step-result ' + ${step.status}">
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:11px;font-weight:700;color:var(--neutral-400);background:var(--neutral-100);padding:2px 8px;border-radius:20px"
+                          th:text="'Step ' + ${iter.index + 1}">Step 1</span>
+                    <strong th:text="${step.stepName}">Step Name</strong>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span th:if="${step.httpStatus != null}" style="font-size:13px;font-weight:600" th:text="${step.httpStatus}">200</span>
+                    <span class="badge"
+                        th:classappend="${step.status == 'pass'} ? 'badge-ok' : (${step.status == 'fail'} ? 'badge-fail' : (${step.status == 'error'} ? 'badge-err' : 'badge-off'))"
+                        th:text="${step.status}">pass</span>
+                    <span th:if="${step.responseTimeMs != null}" style="font-size:12px;color:var(--neutral-400)" th:text="${step.responseTimeMs} + ' ms'"></span>
+                </div>
+            </div>
+
+            <!-- Request sent -->
+            <div th:if="${step.requestSent != null}" style="margin-bottom:10px">
+                <div class="field-label">Request Sent</div>
+                <div class="kv-row">
+                    <code class="badge badge-cat" th:text="${step.requestSent.method}">GET</code>
+                    <code style="font-size:12px;word-break:break-all" th:text="${step.requestSent.url}">/</code>
+                </div>
+                <div th:if="${step.requestSent.body != null}" style="margin-top:4px">
+                    <pre class="snippet-pre" th:text="${step.requestSent.body}"></pre>
+                </div>
+            </div>
+
+            <!-- Response body -->
+            <div th:if="${step.responseBody != null}" style="margin-bottom:10px">
+                <div class="field-label">Response Body</div>
+                <pre class="snippet-pre" th:text="${step.responseBody}"></pre>
+            </div>
+
+            <!-- Extracted values -->
+            <div th:if="${not #maps.isEmpty(step.extractedValues)}" style="margin-bottom:10px">
+                <div class="field-label">Extracted Values</div>
+                <div th:each="entry : ${step.extractedValues}" class="kv-row">
+                    <code th:text="'{{' + ${entry.key} + '}}'">{{var}}</code>
+                    <span style="color:var(--neutral-400)">=</span>
+                    <code style="word-break:break-all" th:text="${entry.value}">value</code>
+                </div>
+            </div>
+
+            <!-- Condition results -->
+            <div th:if="${not #lists.isEmpty(step.conditionResults)}" style="margin-bottom:10px">
+                <div class="field-label">Conditions</div>
+                <div th:each="cr : ${step.conditionResults}" class="kv-row">
+                    <span class="badge" th:classappend="${cr.passed} ? 'badge-ok' : 'badge-fail'" th:text="${cr.passed} ? '✓' : '✗'"></span>
+                    <span th:text="${cr.operator}">EQ</span>
+                    <code th:text="${cr.actualValue ?: 'null'}">-</code>
+                    <span style="color:var(--neutral-400)" th:if="${cr.expectedValue != null}">expected</span>
+                    <code th:text="${cr.expectedValue}" th:if="${cr.expectedValue != null}">-</code>
+                </div>
+            </div>
+
+            <!-- Failure reason -->
+            <div th:if="${step.failureReason != null}" style="font-size:13px;color:#dc2626;margin-top:6px">
+                <strong>Reason:</strong> <span th:text="${step.failureReason}"></span>
+            </div>
+        </div>
+    </section>
+</div>
+<script>
+const themeToggle = document.getElementById('theme-toggle');
+const isDarkMode = localStorage.getItem('dark-mode') === 'true';
+if (isDarkMode) { document.body.classList.add('dark-mode'); themeToggle.textContent = '☀️'; }
+themeToggle.addEventListener('click', function() {
+    document.body.classList.toggle('dark-mode');
+    const darkMode = document.body.classList.contains('dark-mode');
+    localStorage.setItem('dark-mode', darkMode);
+    themeToggle.textContent = darkMode ? '☀️' : '🌙';
+});
+</script>
+</body>
+</html>

@@ -10,6 +10,8 @@ import com.dialog.dtg.core.store.ReportStore;
 import com.dialog.dtg.core.store.RunStore;
 import com.dialog.dtg.core.store.SpecStore;
 import com.dialog.dtg.core.store.TemplateConfigStore;
+import com.dialog.dtg.core.store.WorkflowJsonStore;
+import com.dialog.dtg.core.store.WorkflowRunStore;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,10 +32,15 @@ public class PageController {
     private final WorkflowService workflowService;
     private final TemplateConfigStore templateConfigStore;
     private final AuthConfigStore authConfigStore;
+    private final WorkflowJsonStore workflowJsonStore;
+    private final WorkflowRunStore workflowRunStore;
+    private final com.dialog.dtg.core.service.WorkflowExecutorService workflowExecutorService;
 
     public PageController(SpecStore specStore, PlanStore planStore, RunStore runStore,
                           ReportStore reportStore, WorkflowService workflowService,
-                          TemplateConfigStore templateConfigStore, AuthConfigStore authConfigStore) {
+                          TemplateConfigStore templateConfigStore, AuthConfigStore authConfigStore,
+                          WorkflowJsonStore workflowJsonStore, WorkflowRunStore workflowRunStore,
+                          com.dialog.dtg.core.service.WorkflowExecutorService workflowExecutorService) {
         this.specStore = specStore;
         this.planStore = planStore;
         this.runStore = runStore;
@@ -41,6 +48,9 @@ public class PageController {
         this.workflowService = workflowService;
         this.templateConfigStore = templateConfigStore;
         this.authConfigStore = authConfigStore;
+        this.workflowJsonStore = workflowJsonStore;
+        this.workflowRunStore = workflowRunStore;
+        this.workflowExecutorService = workflowExecutorService;
     }
 
     @GetMapping("/")
@@ -102,7 +112,59 @@ public class PageController {
 
     @GetMapping("/workflows")
     public String workflows(Model model) {
+        model.addAttribute("workflows", workflowJsonStore.list());
         return "workflows";
+    }
+
+    @GetMapping({"/workflows/new", "/workflows/{workflowId}/edit"})
+    public String workflowEditor(@PathVariable(required = false) String workflowId, Model model) {
+        var wf = workflowId != null ? workflowJsonStore.get(workflowId) : null;
+        model.addAttribute("workflow", wf);
+        model.addAttribute("isNew", wf == null);
+        return "workflow-edit";
+    }
+
+    @GetMapping("/workflows/{workflowId}")
+    public String workflowDetail(@PathVariable String workflowId, Model model) {
+        var wf = workflowJsonStore.get(workflowId);
+        if (wf == null) throw new IllegalArgumentException("Workflow not found: " + workflowId);
+        model.addAttribute("workflow", wf);
+        model.addAttribute("recentRuns", workflowRunStore.list().stream()
+            .filter(r -> workflowId.equals(r.getWorkflowId()))
+            .sorted(java.util.Comparator.comparing(
+                com.dialog.dtg.core.model.WorkflowRun::getStartedAt,
+                java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+            .limit(10).toList());
+        return "workflow-detail";
+    }
+
+    @GetMapping("/workflow-runs/{runId}")
+    public String workflowRunDetail(@PathVariable String runId, Model model) {
+        var run = workflowRunStore.get(runId);
+        if (run == null) throw new IllegalArgumentException("Workflow run not found: " + runId);
+        model.addAttribute("run", run);
+        return "workflow-run-detail";
+    }
+
+    @PostMapping("/ui/workflows/{workflowId}/delete")
+    public String deleteWorkflow(@PathVariable String workflowId) {
+        workflowJsonStore.delete(workflowId);
+        // also delete all runs for this workflow
+        workflowRunStore.list().stream()
+            .filter(r -> workflowId.equals(r.getWorkflowId()))
+            .forEach(r -> workflowRunStore.delete(r.getWorkflowRunId()));
+        return "redirect:/workflows";
+    }
+
+    @PostMapping("/ui/workflows/{workflowId}/run")
+    public String runWorkflow(@PathVariable String workflowId) {
+        var wf = workflowJsonStore.get(workflowId);
+        if (wf != null) {
+            var run = workflowExecutorService.execute(wf);
+            workflowRunStore.save(run);
+            return "redirect:/workflow-runs/" + run.getWorkflowRunId();
+        }
+        return "redirect:/workflows/" + workflowId;
     }
 
     @PostMapping("/ui/specs/{specId}/generate")

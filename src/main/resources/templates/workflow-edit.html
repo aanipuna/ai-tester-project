@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="${isNew} ? 'New Workflow' : 'Edit Workflow'">Workflow Editor</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+        .field-group { margin-bottom:14px; }
+        .field-label { font-size:13px; font-weight:600; margin-bottom:4px; display:block; color:var(--text-color); }
+        .wf-input { width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.9rem; background:var(--card-bg); color:var(--text-color); box-sizing:border-box; }
+        body.dark-mode .wf-input { background:rgba(30,41,59,0.8); border-color:#334155; }
+        .wf-input:focus { outline:none; border-color:var(--primary); }
+        .step-box { background:rgba(255,255,255,0.55); border:1px solid var(--card-border); border-radius:10px; padding:14px; margin-bottom:12px; }
+        body.dark-mode .step-box { background:rgba(30,41,59,0.55); border-color:rgba(51,65,85,0.5); }
+        .step-box h4 { margin:0 0 12px 0; font-size:14px; color:var(--text-color); }
+        .rule-editor { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+        .section-label { font-size:11px; font-weight:700; color:var(--neutral-500); text-transform:uppercase; letter-spacing:0.5px; margin:10px 0 4px; }
+        select.wf-input { cursor:pointer; }
+        .msg-ok { color:#16a34a; font-weight:600; }
+        .msg-err { color:#dc2626; font-weight:600; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1 th:text="${isNew} ? 'New Workflow' : 'Edit Workflow'">Workflow Editor</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/workflows">Workflows</a>
+            <a href="/settings">Settings</a>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">🌙</button>
+        </nav>
+    </header>
+
+    <section class="card">
+        <div class="field-group">
+            <label class="field-label">Workflow Name *</label>
+            <input id="wf-name" class="wf-input" placeholder="e.g. OTP Auth Flow" th:value="${workflow?.name ?: ''}" />
+        </div>
+        <div class="field-group">
+            <label class="field-label">Description</label>
+            <input id="wf-desc" class="wf-input" placeholder="Optional description" th:value="${workflow?.description ?: ''}" />
+        </div>
+        <div class="field-group">
+            <label class="field-label">Base URL</label>
+            <input id="wf-baseurl" class="wf-input" placeholder="https://stg.example.com" th:value="${workflow?.baseUrl ?: ''}" />
+        </div>
+
+        <!-- Workflow variables -->
+        <div class="section-label">Workflow Variables</div>
+        <div id="wf-vars-list">
+            <div th:each="entry : ${workflow?.variables}" class="rule-editor wf-var-row">
+                <input class="wf-input var-key" style="width:180px;flex:0 0 auto" placeholder="variableName" th:value="${entry.key}" />
+                <span style="color:var(--neutral-400)">=</span>
+                <input class="wf-input var-val" style="flex:1" placeholder="value" th:value="${entry.value}" />
+                <button type="button" class="btn-disable" style="padding:4px 8px" onclick="this.closest('.wf-var-row').remove()">✕</button>
+            </div>
+        </div>
+        <button type="button" class="btn-action" style="font-size:13px;margin-top:4px" onclick="addVar()">&#43; Add Variable</button>
+    </section>
+
+    <!-- Steps -->
+    <section class="card">
+        <h2>Steps</h2>
+        <div id="steps-container"></div>
+        <button type="button" class="btn-action" onclick="addStep()">&#43; Add Step</button>
+    </section>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <button type="button" class="btn-run" onclick="saveWorkflow()">&#10003; Save Workflow</button>
+        <a href="/workflows" class="btn-disable" style="text-decoration:none">Cancel</a>
+        <span id="save-msg"></span>
+    </div>
+</div>
+
+<script th:inline="javascript">
+const WORKFLOW_ID = /*[[${workflow?.workflowId}]]*/ null;
+const EXISTING_STEPS = /*[[${workflow?.steps}]]*/ [];
+
+const HTTP_METHODS = ['GET','POST','PUT','PATCH','DELETE'];
+const EXTRACTION_SOURCES = ['BODY','HEADER','STATUS'];
+const INJECTION_TARGETS = ['HEADER','BODY_FIELD','QUERY_PARAM','PATH'];
+const CONDITION_SOURCES = ['STATUS','BODY','HEADER'];
+const CONDITION_OPS = ['EQ','NE','CONTAINS','EXISTS','EMPTY','LT_STATUS'];
+const STANDARD_HEADERS = ['Authorization','Content-Type','Accept','X-Api-Key','X-Auth-Token','X-Tenant-ID','X-Request-ID'];
+
+let stepCount = 0;
+
+function sel(options, selected, cls) {
+    return '<select class="wf-input ' + (cls||'') + '" style="width:auto;flex:0 0 auto">' +
+        options.map(o => '<option' + (o === selected ? ' selected' : '') + '>' + o + '</option>').join('') + '</select>';
+}
+
+function addStep(existing) {
+    stepCount++;
+    const id = existing?.stepId || ('new-step-' + stepCount);
+    const box = document.createElement('div');
+    box.className = 'step-box';
+    box.dataset.stepId = id;
+    box.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <h4>Step ${stepCount}</h4>
+            <div style="display:flex;gap:6px">
+                <button type="button" class="btn-action" style="padding:3px 8px;font-size:12px" onclick="moveStep(this,-1)">↑</button>
+                <button type="button" class="btn-action" style="padding:3px 8px;font-size:12px" onclick="moveStep(this,1)">↓</button>
+                <button type="button" class="btn-disable" style="padding:3px 8px;font-size:12px" onclick="this.closest('.step-box').remove()">✕</button>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div><span class="field-label">Step Name *</span><input class="wf-input step-name" placeholder="e.g. Login" value="${existing?.name||''}"/></div>
+            <div><span class="field-label">Method</span>${sel(HTTP_METHODS, existing?.method||'POST','step-method')}</div>
+        </div>
+        <div class="field-group"><span class="field-label">Path (supports {{vars}})</span><input class="wf-input step-path" placeholder="/api/auth/otp/request" value="${existing?.path||''}"/></div>
+        <div class="field-group"><span class="field-label">Request Body (JSON, supports {{vars}})</span><textarea class="wf-input step-body" style="min-height:64px;font-family:monospace;font-size:0.85rem">${existing?.body||''}</textarea></div>
+
+        <div class="section-label">Extraction Rules <button type="button" class="btn-action" style="font-size:11px;padding:2px 7px;margin-left:6px" onclick="addExtraction(this)">+ Add</button></div>
+        <div class="extractions"></div>
+
+        <div class="section-label">Injection Rules <button type="button" class="btn-action" style="font-size:11px;padding:2px 7px;margin-left:6px" onclick="addInjection(this)">+ Add</button></div>
+        <div class="injections"></div>
+
+        <div class="section-label">Conditions <button type="button" class="btn-action" style="font-size:11px;padding:2px 7px;margin-left:6px" onclick="addCondition(this)">+ Add</button></div>
+        <div class="conditions"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px">
+            <input type="checkbox" class="step-halt" id="halt-${id}" ${existing?.haltOnConditionFailure?'checked':''}/>
+            <label for="halt-${id}">Halt workflow if any condition fails</label>
+        </div>`;
+
+    document.getElementById('steps-container').appendChild(box);
+    // Populate existing rules
+    if (existing?.extractions) existing.extractions.forEach(e => addExtraction(box.querySelector('.extractions'), e));
+    if (existing?.injections) existing.injections.forEach(i => addInjection(box.querySelector('.injections'), i));
+    if (existing?.conditions) existing.conditions.forEach(c => addCondition(box.querySelector('.conditions'), c));
+    renumberSteps();
+}
+
+function addExtraction(triggerOrContainer, existing) {
+    const container = triggerOrContainer instanceof Element && triggerOrContainer.classList.contains('extractions')
+        ? triggerOrContainer : triggerOrContainer.closest('.step-box').querySelector('.extractions');
+    const row = document.createElement('div'); row.className = 'rule-editor extraction-row';
+    row.innerHTML = `<input class="wf-input ex-var" style="width:160px;flex:0 0 auto" placeholder="variableName" value="${existing?.variableName||''}"/>
+        ${sel(EXTRACTION_SOURCES, existing?.source||'BODY','ex-source')}
+        <input class="wf-input ex-locator" style="flex:1;min-width:120px" placeholder="$.data.token or header-name" value="${existing?.locator||''}"/>
+        <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" class="ex-secret" ${existing?.secret?'checked'}/> secret</label>
+        <button type="button" class="btn-disable" style="padding:3px 8px;font-size:11px" onclick="this.closest('.extraction-row').remove()">✕</button>`;
+    container.appendChild(row);
+}
+
+function addInjection(triggerOrContainer, existing) {
+    const container = triggerOrContainer instanceof Element && triggerOrContainer.classList.contains('injections')
+        ? triggerOrContainer : triggerOrContainer.closest('.step-box').querySelector('.injections');
+    const row = document.createElement('div'); row.className = 'rule-editor injection-row';
+    row.innerHTML = `<input class="wf-input inj-ref" style="flex:1;min-width:140px" placeholder="{{step1.authToken}}" value="${existing?.variableRef||''}"/>
+        <span style="color:var(--neutral-400)">→</span>
+        ${sel(INJECTION_TARGETS, existing?.target||'HEADER','inj-target')}
+        <input class="wf-input inj-key" style="width:160px;flex:0 0 auto" placeholder="Header name or field" value="${existing?.targetKey||''}"/>
+        <button type="button" class="btn-disable" style="padding:3px 8px;font-size:11px" onclick="this.closest('.injection-row').remove()">✕</button>`;
+    container.appendChild(row);
+}
+
+function addCondition(triggerOrContainer, existing) {
+    const container = triggerOrContainer instanceof Element && triggerOrContainer.classList.contains('conditions')
+        ? triggerOrContainer : triggerOrContainer.closest('.step-box').querySelector('.conditions');
+    const row = document.createElement('div'); row.className = 'rule-editor condition-row';
+    row.innerHTML = `<span style="font-size:12px;color:var(--neutral-400)">IF</span>
+        <input class="wf-input cond-step" style="width:120px;flex:0 0 auto" placeholder="source step ID" value="${existing?.sourceStepId||''}"/>
+        ${sel(CONDITION_SOURCES, existing?.source||'STATUS','cond-source')}
+        <input class="wf-input cond-locator" style="flex:1;min-width:100px" placeholder="$.field or header-name" value="${existing?.locator||''}"/>
+        ${sel(CONDITION_OPS, existing?.operator||'EQ','cond-op')}
+        <input class="wf-input cond-expected" style="width:90px;flex:0 0 auto" placeholder="200" value="${existing?.expectedValue||''}"/>
+        <button type="button" class="btn-disable" style="padding:3px 8px;font-size:11px" onclick="this.closest('.condition-row').remove()">✕</button>`;
+    container.appendChild(row);
+}
+
+function addVar() {
+    const row = document.createElement('div'); row.className = 'rule-editor wf-var-row';
+    row.innerHTML = `<input class="wf-input var-key" style="width:180px;flex:0 0 auto" placeholder="variableName" />
+        <span style="color:var(--neutral-400)">=</span>
+        <input class="wf-input var-val" style="flex:1" placeholder="value" />
+        <button type="button" class="btn-disable" style="padding:4px 8px" onclick="this.closest('.wf-var-row').remove()">✕</button>`;
+    document.getElementById('wf-vars-list').appendChild(row);
+}
+
+function moveStep(btn, dir) {
+    const box = btn.closest('.step-box');
+    const container = document.getElementById('steps-container');
+    const steps = [...container.children];
+    const idx = steps.indexOf(box);
+    const target = idx + dir;
+    if (target < 0 || target >= steps.length) return;
+    if (dir === -1) container.insertBefore(box, steps[target]);
+    else container.insertBefore(steps[target], box);
+    renumberSteps();
+}
+
+function renumberSteps() {
+    [...document.querySelectorAll('.step-box h4')].forEach((h, i) => h.textContent = 'Step ' + (i + 1));
+}
+
+function collectWorkflow() {
+    const vars = {};
+    document.querySelectorAll('.wf-var-row').forEach(r => {
+        const k = r.querySelector('.var-key').value.trim();
+        if (k) vars[k] = r.querySelector('.var-val').value;
+    });
+    const steps = [...document.querySelectorAll('.step-box')].map(box => ({
+        stepId: box.dataset.stepId,
+        name: box.querySelector('.step-name').value.trim(),
+        method: box.querySelector('.step-method').value,
+        path: box.querySelector('.step-path').value.trim(),
+        body: box.querySelector('.step-body').value.trim() || null,
+        headers: {},
+        queryParams: {},
+        timeoutMs: 10000,
+        haltOnConditionFailure: box.querySelector('.step-halt').checked,
+        extractions: [...box.querySelectorAll('.extraction-row')].map(r => ({
+            variableName: r.querySelector('.ex-var').value.trim(),
+            source: r.querySelector('.ex-source').value,
+            locator: r.querySelector('.ex-locator').value.trim() || null,
+            secret: r.querySelector('.ex-secret').checked
+        })).filter(e => e.variableName),
+        injections: [...box.querySelectorAll('.injection-row')].map(r => ({
+            variableRef: r.querySelector('.inj-ref').value.trim(),
+            target: r.querySelector('.inj-target').value,
+            targetKey: r.querySelector('.inj-key').value.trim()
+        })).filter(i => i.variableRef && i.targetKey),
+        conditions: [...box.querySelectorAll('.condition-row')].map(r => ({
+            sourceStepId: r.querySelector('.cond-step').value.trim(),
+            source: r.querySelector('.cond-source').value,
+            locator: r.querySelector('.cond-locator').value.trim() || null,
+            operator: r.querySelector('.cond-op').value,
+            expectedValue: r.querySelector('.cond-expected').value.trim() || null
+        })).filter(c => c.sourceStepId)
+    }));
+    return {
+        name: document.getElementById('wf-name').value.trim(),
+        description: document.getElementById('wf-desc').value.trim() || null,
+        baseUrl: document.getElementById('wf-baseurl').value.trim() || null,
+        variables: vars, steps
+    };
+}
+
+function saveWorkflow() {
+    const payload = collectWorkflow();
+    if (!payload.name) { alert('Workflow name is required'); return; }
+    if (!payload.steps.length) { alert('Add at least one step'); return; }
+    const msg = document.getElementById('save-msg');
+    const url = WORKFLOW_ID ? '/api/workflows/' + WORKFLOW_ID : '/api/workflows';
+    const method = WORKFLOW_ID ? 'PUT' : 'POST';
+    fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+        .then(wf => { msg.textContent = '✓ Saved!'; msg.className = 'msg-ok'; setTimeout(() => location.href = '/workflows/' + wf.workflowId, 800); })
+        .catch(err => { msg.textContent = '✗ ' + (err || 'Save failed'); msg.className = 'msg-err'; });
+}
+
+// Init: load existing steps if editing
+if (EXISTING_STEPS && EXISTING_STEPS.length) {
+    EXISTING_STEPS.forEach(s => addStep(s));
+} else {
+    addStep(); // start with one empty step
+}
+</script>
+<script>
+const themeToggle = document.getElementById('theme-toggle');
+const isDarkMode = localStorage.getItem('dark-mode') === 'true';
+if (isDarkMode) { document.body.classList.add('dark-mode'); themeToggle.textContent = '☀️'; }
+themeToggle.addEventListener('click', function() {
+    document.body.classList.toggle('dark-mode');
+    const darkMode = document.body.classList.contains('dark-mode');
+    localStorage.setItem('dark-mode', darkMode);
+    themeToggle.textContent = darkMode ? '☀️' : '🌙';
+});
+</script>
+</body>
+</html>

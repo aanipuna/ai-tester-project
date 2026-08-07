@@ -19,6 +19,18 @@ public final class Ids {
         return "run-" + shortId();
     }
 
+    public static String nextWorkflowId() {
+        return "wf-" + shortId();
+    }
+
+    public static String nextWorkflowRunId() {
+        return "wfrun-" + shortId();
+    }
+
+    public static String nextStepId() {
+        return "step-" + shortId();
+    }
+
     private static String shortId() {
         return UUID.randomUUID().toString().substring(0, 8);
     }

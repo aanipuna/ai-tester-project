@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="'Workflow ' + ${workflow.name}">Workflow Detail</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+        .step-card { background:rgba(255,255,255,0.55); border:1px solid var(--card-border); border-radius:10px; padding:14px; margin-bottom:10px; }
+        body.dark-mode .step-card { background:rgba(30,41,59,0.55); border-color:rgba(51,65,85,0.5); }
+        .rule-row { display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap; font-size:13px; }
+        .rule-label { font-size:11px; font-weight:600; color:var(--neutral-500); text-transform:uppercase; margin-bottom:4px; }
+        .step-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px; }
+        .step-num { font-size:11px; font-weight:700; color:var(--neutral-400); background:var(--neutral-100); padding:2px 8px; border-radius:20px; }
+        body.dark-mode .step-num { background:rgba(51,65,85,0.5); }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Workflow Detail</h1>
+        <nav>
+            <a href="/specs">Specs</a>
+            <a href="/plans">Plans</a>
+            <a href="/runs">Runs</a>
+            <a href="/workflows">Workflows</a>
+            <a href="/settings">Settings</a>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">🌙</button>
+        </nav>
+    </header>
+
+    <!-- Workflow summary -->
+    <section class="card">
+        <h2 th:text="${workflow.name}">Workflow Name</h2>
+        <dl class="meta-grid">
+            <dt>Workflow ID</dt><dd><code th:text="${workflow.workflowId}">-</code></dd>
+            <dt>Base URL</dt><dd th:text="${workflow.baseUrl ?: '(per-step)'}">-</dd>
+            <dt>Steps</dt><dd th:text="${workflow.steps.size()}">0</dd>
+            <dt>Status</dt><dd><span class="badge" th:classappend="${workflow.status == 'active'} ? 'badge-ok' : 'badge-off'" th:text="${workflow.status}">-</span></dd>
+        </dl>
+        <div th:if="${workflow.description != null}" style="margin-top:8px;color:var(--neutral-500);font-size:14px" th:text="${workflow.description}"></div>
+        <div class="toolbar">
+            <form th:action="'/ui/workflows/' + ${workflow.workflowId} + '/run'" method="post" style="display:inline">
+                <button type="submit" class="btn-run">&#9654; Run Workflow</button>
+            </form>
+            <a th:href="'/workflows/' + ${workflow.workflowId} + '/edit'" class="btn-action">&#9998; Edit</a>
+            <form th:action="'/ui/workflows/' + ${workflow.workflowId} + '/delete'" method="post" style="display:inline"
+                  onsubmit="return confirm('Delete this workflow and all its runs?')">
+                <button type="submit" class="btn-disable">&#128465; Delete</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Steps view -->
+    <section class="card">
+        <h2>Steps</h2>
+
+        <!-- Workflow variables -->
+        <div th:if="${not #maps.isEmpty(workflow.variables)}" style="margin-bottom:16px">
+            <div class="rule-label">Workflow Variables</div>
+            <div th:each="entry : ${workflow.variables}" class="rule-row">
+                <code th:text="'{{' + ${entry.key} + '}}'">{{var}}</code>
+                <span style="color:var(--neutral-400)">=</span>
+                <span th:text="${entry.value}">value</span>
+            </div>
+        </div>
+
+        <div th:each="step, iter : ${workflow.steps}" class="step-card">
+            <div class="step-header">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="step-num" th:text="'Step ' + ${iter.index + 1}">Step 1</span>
+                    <strong th:text="${step.name}">Step Name</strong>
+                </div>
+                <div>
+                    <code class="badge badge-cat" th:text="${step.method}">GET</code>
+                    <span style="font-size:13px;color:var(--neutral-500)" th:text="${step.path}">/path</span>
+                </div>
+            </div>
+
+            <div th:if="${step.body != null}" style="margin-bottom:8px">
+                <div class="rule-label">Request Body</div>
+                <pre class="tc-body" th:text="${step.body}"></pre>
+            </div>
+
+            <div th:if="${not #lists.isEmpty(step.extractions)}" style="margin-bottom:8px">
+                <div class="rule-label">Extractions (from response)</div>
+                <div th:each="ex : ${step.extractions}" class="rule-row">
+                    <span class="badge badge-cat" th:text="${ex.source}">BODY</span>
+                    <code th:text="${ex.locator ?: 'status'}">$.data.token</code>
+                    <span style="color:var(--neutral-400)">→</span>
+                    <code th:text="'{{stepN.' + ${ex.variableName} + '}}'">{{stepN.varName}}</code>
+                    <span th:if="${ex.secret}" class="badge badge-off">secret</span>
+                </div>
+            </div>
+
+            <div th:if="${not #lists.isEmpty(step.injections)}" style="margin-bottom:8px">
+                <div class="rule-label">Injections (into request)</div>
+                <div th:each="inj : ${step.injections}" class="rule-row">
+                    <code th:text="${inj.variableRef}">{{var}}</code>
+                    <span style="color:var(--neutral-400)">→</span>
+                    <span class="badge badge-cat" th:text="${inj.target}">HEADER</span>
+                    <code th:text="${inj.targetKey}">Authorization</code>
+                </div>
+            </div>
+
+            <div th:if="${not #lists.isEmpty(step.conditions)}">
+                <div class="rule-label">Conditions</div>
+                <div th:each="cond : ${step.conditions}" class="rule-row">
+                    <span style="color:var(--neutral-400)">IF step</span>
+                    <code th:text="${cond.sourceStepId}">step-id</code>
+                    <span class="badge badge-cat" th:text="${cond.source}">STATUS</span>
+                    <span th:text="${cond.locator}" th:if="${cond.locator != null}"></span>
+                    <strong th:text="${cond.operator}">EQ</strong>
+                    <code th:text="${cond.expectedValue}">200</code>
+                    <span th:if="${step.haltOnConditionFailure}" class="badge badge-fail">halt on fail</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recent runs -->
+    <section class="card" th:if="${not #lists.isEmpty(recentRuns)}">
+        <h2>Recent Runs</h2>
+        <div style="overflow-x:auto">
+        <table>
+            <thead><tr><th>Run ID</th><th>Status</th><th>Started</th><th>Steps</th><th>Actions</th></tr></thead>
+            <tbody>
+            <tr th:each="run : ${recentRuns}">
+                <td><code style="font-size:12px" th:text="${run.workflowRunId}">-</code></td>
+                <td><span class="badge"
+                    th:classappend="${run.status == 'passed'} ? 'badge-ok' : (${run.status == 'failed'} ? 'badge-fail' : 'badge-off')"
+                    th:text="${run.status}">-</span></td>
+                <td th:text="${run.startedAt}">-</td>
+                <td th:text="${run.stepResults.size()}">0</td>
+                <td><a th:href="'/workflow-runs/' + ${run.workflowRunId}" class="btn-view">Details</a></td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+    </section>
+</div>
+<script>
+const themeToggle = document.getElementById('theme-toggle');
+const isDarkMode = localStorage.getItem('dark-mode') === 'true';
+if (isDarkMode) { document.body.classList.add('dark-mode'); themeToggle.textContent = '☀️'; }
+themeToggle.addEventListener('click', function() {
+    document.body.classList.toggle('dark-mode');
+    const darkMode = document.body.classList.contains('dark-mode');
+    localStorage.setItem('dark-mode', darkMode);
+    themeToggle.textContent = darkMode ? '☀️' : '🌙';
+});
+</script>
+</body>
+</html>
