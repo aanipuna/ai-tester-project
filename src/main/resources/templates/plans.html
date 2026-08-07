@@ -60,39 +60,35 @@
 
     <section class="card">
         <h2>Existing Plans</h2>
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-            <span id="plan-count" style="font-size:13px;color:var(--neutral-500)" th:text="${plans.size()} + ' plan(s)'"></span>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+            <span style="font-size:13px;color:var(--neutral-500)" th:text="${plans.size()} + ' plan(s)'"></span>
             <button class="btn-disable" onclick="clearAllPlans()" style="font-size:13px">&#128465; Clear All Plans</button>
         </div>
-        <div style="overflow-x:auto">
-        <table style="table-layout:fixed;width:100%">
-            <colgroup>
-                <col style="width:140px">
-                <col style="width:280px">
-                <col style="width:180px">
-                <col style="width:90px">
-                <col style="width:220px">
-            </colgroup>
-            <thead><tr><th>Plan ID</th><th>Source Endpoint</th><th>Base URL</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>
-            <tr th:each="plan : ${plans}">
-                <td style="font-family:monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" th:text="${plan.planId}">plan-id</td>
-                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" th:title="${plan.sourceEndpoint}" th:text="${plan.sourceEndpoint}">endpoint</td>
-                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" th:title="${plan.baseUrl}" th:text="${plan.baseUrl}">url</td>
-                <td><span class="badge" th:classappend="${plan.status == 'active'} ? 'badge-ok' : 'badge-off'" th:text="${plan.status}">status</span></td>
-                <td class="actions">
-                    <a th:href="'/plans/' + ${plan.planId}" class="btn-view">Details</a>
-                    <form th:action="'/ui/plans/' + ${plan.planId} + '/run'" method="post" style="display:contents">
-                        <button type="submit" class="btn-run">&#9654; Run</button>
-                    </form>
-                    <form th:action="'/ui/plans/' + ${plan.planId} + '/delete'" method="post" style="display:contents"
-                          onsubmit="return confirm('Delete this plan?')">
-                        <button type="submit" class="btn-disable">&#128465; Delete</button>
-                    </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+        <div th:each="plan : ${plans}"
+             class="plan-card"
+             th:classappend="${plan.status != 'active'} ? ' plan-card-disabled'">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+                <code style="font-size:11px;color:var(--neutral-500);word-break:break-all" th:text="${plan.planId}">plan-id</code>
+                <span class="badge" th:classappend="${plan.status == 'active'} ? 'badge-ok' : 'badge-off'" th:text="${plan.status}">status</span>
+            </div>
+            <div th:if="${plan.sourceSpecId != null}" style="font-size:11px;color:var(--primary);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" th:text="'Spec: ' + ${plan.sourceSpecId}">spec</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" th:title="${plan.sourceEndpoint}" th:text="${plan.sourceEndpoint}">endpoint</div>
+            <div style="font-size:12px;color:var(--neutral-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:12px" th:title="${plan.baseUrl}" th:text="${plan.baseUrl}">url</div>
+            <div class="actions">
+                <a th:href="'/plans/' + ${plan.planId}" class="btn-view">Details</a>
+                <form th:action="'/ui/plans/' + ${plan.planId} + '/run'" method="post" style="display:contents">
+                    <button type="submit" class="btn-run">&#9654; Run</button>
+                </form>
+                <form th:action="'/ui/plans/' + ${plan.planId} + '/delete'" method="post" style="display:contents"
+                      onsubmit="return confirm('Delete this plan?')">
+                    <button type="submit" class="btn-disable">&#128465;</button>
+                </form>
+            </div>
+        </div>
+        </div>
+        <div th:if="${plans.empty}" style="text-align:center;padding:40px;color:var(--neutral-400)">
+            No plans yet. Generate plans from a spec above.
         </div>
     </section>
 </div>

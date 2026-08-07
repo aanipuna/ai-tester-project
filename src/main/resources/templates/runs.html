@@ -22,13 +22,13 @@
     <section class="card">
         <h2>Run a Plan</h2>
         <form id="run-form">
-            <label>Plan
-                <select id="run-plan-select" required>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center">
+                <select id="run-plan-select" required style="padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;background:var(--card-bg);color:var(--text-color);width:100%">
                     <option value="" disabled selected>— select a plan —</option>
                     <option th:each="plan : ${plans}" th:value="${plan.planId}" th:text="${plan.sourceEndpoint} + ' (' + ${plan.planId} + ')'" />
                 </select>
-            </label>
-            <button type="submit" class="btn-run">&#9654; Run Plan</button>
+                <button type="submit" class="btn-run" style="white-space:nowrap">&#9654; Run Plan</button>
+            </div>
         </form>
         <script>
         document.getElementById('run-form').addEventListener('submit', function(e) {
@@ -46,6 +46,9 @@
         <h2>Run History</h2>
         <div style="overflow-x:auto">
         <table>
+            <thead>
+                <tr>
+                    <th>Run ID</th>
                     <th>Plan ID</th>
                     <th>Total</th>
                     <th>Passed</th>
@@ -77,6 +80,8 @@
         </table>
         </div>
     </section>
+</div>
+<script>
 const themeToggle = document.getElementById('theme-toggle');
 const isDarkMode = localStorage.getItem('dark-mode') === 'true';
 if (isDarkMode) { document.body.classList.add('dark-mode'); themeToggle.textContent = '☀️'; }

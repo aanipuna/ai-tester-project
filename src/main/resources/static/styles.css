@@ -151,6 +151,25 @@ body.dark-mode .card:hover {
     border-color: rgba(59, 130, 246, 0.3);
 }
 
+/* Plan grid cards */
+.plan-card {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px;
+    transition: box-shadow 0.2s, background 0.2s;
+}
+.plan-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.plan-card-disabled { opacity: 0.6; }
+body.dark-mode .plan-card {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(51, 65, 85, 0.5);
+}
+body.dark-mode .plan-card:hover { background: rgba(30, 41, 59, 0.8); }
+body.dark-mode .plan-card code { color: #94a3b8; }
+body.dark-mode .plan-card .actions a,
+body.dark-mode .plan-card .actions button { }
+
 .card h2 {
     margin: 0 0 16px 0;
     font-size: 20px;

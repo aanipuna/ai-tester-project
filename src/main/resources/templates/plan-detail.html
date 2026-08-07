@@ -24,6 +24,20 @@
         body.dark-mode .edit-area { background:rgba(30, 41, 59, 0.8); border-color:#334155; }
         body.dark-mode .save-bar { background:rgba(30, 41, 59, 0.8); border-top-color:#334155; }
 
+        /* Headers editor */
+        .hdr-panel td { padding:12px 16px; background:rgba(59,130,246,0.04); border-top:none; }
+        body.dark-mode .hdr-panel td { background:rgba(30,58,138,0.15); }
+        .hdr-list { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+        .hdr-pair { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .hdr-pair .hdr-key { width:200px; min-width:120px; font-family:monospace; font-size:0.85rem; }
+        .hdr-pair .hdr-val { flex:1; min-width:160px; font-size:0.85rem; }
+        .hdr-add  { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px dashed #d1d5db; }
+        body.dark-mode .hdr-add { border-top-color:#334155; }
+        .btn-hdr  { padding:5px 12px; font-size:12px; border-radius:6px; border:1px solid var(--primary); color:var(--primary); background:transparent; cursor:pointer; white-space:nowrap; transition:all 0.2s; }
+        .btn-hdr:hover { background:var(--primary); color:#fff; }
+        .btn-hdr-del { padding:4px 8px; font-size:12px; border-radius:6px; border:1px solid #e5e7eb; background:transparent; cursor:pointer; color:var(--neutral-500); }
+        .btn-hdr-del:hover { border-color:#dc2626; color:#dc2626; }
+
         /* Responsive test case cards */
         .tc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px; }
         .tc-card { background:rgba(255,255,255,0.6); border:1px solid var(--card-border); border-radius:12px; padding:16px; transition:box-shadow 0.2s; }
@@ -133,15 +147,13 @@
                 <tr>
                     <th>ID</th><th>Enabled</th><th>Category</th><th>Method</th>
                     <th>Path</th><th>Exp&nbsp;Status</th><th>Description</th>
-                    <th>Request Body</th><th>Timeout&nbsp;(ms)</th><th></th>
+                    <th>Request Body</th><th>Headers</th><th>Timeout&nbsp;(ms)</th><th></th>
                 </tr>
             </thead>
             <tbody>
-            <tr th:each="tc,iter : ${plan.testCases}"
-                th:data-index="${iter.index}"
-                th:data-id="${tc.id}"
-                th:data-headers="${tc.request?.headers}"
-                th:data-queryparams="${tc.request?.queryParams}">
+            <th:block th:each="tc,iter : ${plan.testCases}">
+            <tr th:data-index="${iter.index}"
+                th:data-id="${tc.id}">
                 <td th:text="${tc.id}">-</td>
                 <td style="text-align:center">
                     <input type="checkbox" th:checked="${tc.enabled}" class="edit-enabled" />
@@ -194,9 +206,51 @@
                 </td>
                 <td><input class="edit-input edit-desc" th:value="${tc.description}" style="min-width:160px" /></td>
                 <td><textarea class="edit-area edit-body" th:text="${tc.request?.body}" placeholder="{&amp;quot;key&amp;quot;: &amp;quot;value&amp;quot;}" style="min-width:160px"></textarea></td>
+                <td style="white-space:nowrap">
+                    <button type="button" class="btn-hdr" onclick="toggleHeaders(this)">
+                        &#128196; Headers (<span class="hdr-count" th:text="${tc.request?.headers != null ? tc.request.headers.size() : 0}">0</span>)
+                    </button>
+                </td>
                 <td><input type="number" class="edit-input edit-timeout" th:value="${tc.timeoutMs}" style="width:80px" /></td>
-                <td><button type="button" class="btn-disable" style="font-size:12px;padding:4px 8px" onclick="this.closest('tr').remove()">&#10005;</button></td>
+                <td><button type="button" class="btn-disable" style="font-size:12px;padding:4px 8px" onclick="this.closest('tr').nextElementSibling.remove(); this.closest('tr').remove()">&#10005;</button></td>
             </tr>
+            <!-- Headers panel row for this test case -->
+            <tr class="hdr-panel" style="display:none">
+                <td colspan="11">
+                    <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text-color)">Request Headers</div>
+                    <div class="hdr-list">
+                        <div th:each="entry : ${tc.request?.headers}" class="hdr-pair">
+                            <input class="edit-input hdr-key" th:value="${entry.key}" placeholder="Header name" style="width:200px;min-width:120px;font-family:monospace;font-size:0.85rem" />
+                            <input class="edit-input hdr-val" th:value="${entry.value}" placeholder="Value" style="flex:1;min-width:160px;font-size:0.85rem" />
+                            <button type="button" class="btn-hdr-del" onclick="removeHeader(this)">&#10005;</button>
+                        </div>
+                    </div>
+                    <div class="hdr-add">
+                        <select class="edit-select hdr-preset" onchange="applyPreset(this)" style="min-width:200px;font-size:0.85rem">
+                            <option value="">&#43; Standard headers…</option>
+                            <option value="Authorization|Bearer ">Authorization: Bearer</option>
+                            <option value="Authorization|Basic ">Authorization: Basic</option>
+                            <option value="Content-Type|application/json">Content-Type: application/json</option>
+                            <option value="Content-Type|application/x-www-form-urlencoded">Content-Type: form-urlencoded</option>
+                            <option value="Accept|application/json">Accept: application/json</option>
+                            <option value="Accept|*/*">Accept: */*</option>
+                            <option value="X-Api-Key|">X-Api-Key</option>
+                            <option value="X-Auth-Token|">X-Auth-Token</option>
+                            <option value="X-Request-ID|">X-Request-ID</option>
+                            <option value="Cache-Control|no-cache">Cache-Control: no-cache</option>
+                            <option value="User-Agent|">User-Agent</option>
+                            <option value="Origin|">Origin</option>
+                            <option value="Referer|">Referer</option>
+                            <option value="Cookie|">Cookie</option>
+                            <option value="custom|">Custom header…</option>
+                        </select>
+                        <input class="edit-input hdr-new-key" placeholder="Header name" style="width:180px;font-family:monospace;font-size:0.85rem" />
+                        <input class="edit-input hdr-new-val" placeholder="Value" style="flex:1;min-width:140px;font-size:0.85rem" />
+                        <button type="button" class="btn-hdr" onclick="addHeaderRow(this)">&#43; Add</button>
+                    </div>
+                </td>
+            </tr>
+            </th:block>
             </tbody>
         </table>
         </div>
@@ -217,6 +271,55 @@ function enterEdit() {
     document.getElementById('btn-edit').style.display = 'none';
     document.getElementById('btn-cancel').style.display = '';
 }
+function toggleHeaders(btn) {
+    const row = btn.closest('tr');
+    const panel = row.nextElementSibling;
+    if (!panel || !panel.classList.contains('hdr-panel')) return;
+    const show = panel.style.display === 'none';
+    panel.style.display = show ? '' : 'none';
+    btn.style.background = show ? 'var(--primary)' : '';
+    btn.style.color = show ? '#fff' : '';
+}
+
+function removeHeader(btn) {
+    const pair = btn.closest('.hdr-pair');
+    const panel = pair.closest('.hdr-panel');
+    pair.remove();
+    updateHeaderCount(panel);
+}
+
+function applyPreset(sel) {
+    if (!sel.value) return;
+    const [key, val] = sel.value.split('|');
+    const add = sel.closest('.hdr-add');
+    add.querySelector('.hdr-new-key').value = key;
+    add.querySelector('.hdr-new-val').value = val || '';
+    add.querySelector('.hdr-new-val').focus();
+    sel.value = '';
+}
+
+function addHeaderRow(btn) {
+    const add = btn.closest('.hdr-add');
+    const key = add.querySelector('.hdr-new-key').value.trim();
+    const val = add.querySelector('.hdr-new-val').value.trim();
+    if (!key) { add.querySelector('.hdr-new-key').focus(); return; }
+    const panel = btn.closest('.hdr-panel');
+    const list = panel.querySelector('.hdr-list');
+    const pair = document.createElement('div'); pair.className = 'hdr-pair';
+    const ki = document.createElement('input'); ki.className = 'edit-input hdr-key'; ki.value = key; ki.placeholder = 'Header name'; ki.style.cssText = 'width:200px;min-width:120px;font-family:monospace;font-size:0.85rem';
+    const vi = document.createElement('input'); vi.className = 'edit-input hdr-val'; vi.value = val; vi.placeholder = 'Value'; vi.style.cssText = 'flex:1;min-width:160px;font-size:0.85rem';
+    const rb = document.createElement('button'); rb.type = 'button'; rb.className = 'btn-hdr-del'; rb.textContent = '✕'; rb.onclick = () => { pair.remove(); updateHeaderCount(panel); };
+    pair.append(ki, vi, rb); list.appendChild(pair);
+    add.querySelector('.hdr-new-key').value = '';
+    add.querySelector('.hdr-new-val').value = '';
+    updateHeaderCount(panel);
+}
+
+function updateHeaderCount(panel) {
+    const row = panel.previousElementSibling;
+    if (row) { const span = row.querySelector('.hdr-count'); if (span) span.textContent = panel.querySelectorAll('.hdr-pair').length; }
+}
+
 function cancelEdit() {
     document.getElementById('view-mode').style.display = 'block';
     document.getElementById('edit-mode').style.display = 'none';
@@ -294,17 +397,33 @@ function addTestCase() {
     row.appendChild(makeTd(removeBtn));
 
     document.querySelector('#edit-table tbody').appendChild(row);
+    // Add companion headers panel row
+    const panelRow = document.createElement('tr');
+    panelRow.className = 'hdr-panel';
+    panelRow.style.display = 'none';
+    panelRow.innerHTML = '<td colspan="11"><div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text-color)">Request Headers</div><div class="hdr-list"></div><div class="hdr-add"><select class="edit-select hdr-preset" onchange="applyPreset(this)" style="min-width:200px;font-size:0.85rem"><option value="">&#43; Standard headers\u2026</option><option value="Authorization|Bearer ">Authorization: Bearer</option><option value="Authorization|Basic ">Authorization: Basic</option><option value="Content-Type|application/json">Content-Type: application/json</option><option value="Accept|application/json">Accept: application/json</option><option value="X-Api-Key|">X-Api-Key</option><option value="X-Auth-Token|">X-Auth-Token</option><option value="Cache-Control|no-cache">Cache-Control: no-cache</option><option value="Cookie|">Cookie</option><option value="custom|">Custom header\u2026</option></select><input class="edit-input hdr-new-key" placeholder="Header name" style="width:180px;font-family:monospace;font-size:0.85rem" /><input class="edit-input hdr-new-val" placeholder="Value" style="flex:1;min-width:140px;font-size:0.85rem" /><button type="button" class="btn-hdr" onclick="addHeaderRow(this)">&#43; Add</button></div></td>';
+    document.querySelector('#edit-table tbody').appendChild(panelRow);
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function savePlan() {
-    const rows = document.querySelectorAll('#edit-table tbody tr');
-    const testCases = Array.from(rows).map(row => {
+    // Skip hdr-panel rows — only process actual edit rows
+    const rows = [...document.querySelectorAll('#edit-table tbody tr')].filter(r => !r.classList.contains('hdr-panel'));
+    const testCases = rows.map(row => {
+        const hdrs = {};
+        const panel = row.nextElementSibling;
+        if (panel && panel.classList.contains('hdr-panel')) {
+            panel.querySelectorAll('.hdr-pair').forEach(p => {
+                const k = p.querySelector('.hdr-key').value.trim();
+                const v = p.querySelector('.hdr-val').value.trim();
+                if (k) hdrs[k] = v;
+            });
+        }
         const req = {
             method:      row.querySelector('.edit-method').value,
             path:        row.querySelector('.edit-path').value,
             body:        row.querySelector('.edit-body').value.trim() || null,
-            headers:     {},
+            headers:     hdrs,
             queryParams: {}
         };
         return {
