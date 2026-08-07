@@ -52,6 +52,15 @@ public class SpecStore extends JsonRepositorySupport {
         return out;
     }
 
+    public boolean delete(String specId) {
+        Path path = resolvePath(specId);
+        try {
+            return Files.deleteIfExists(path);
+        } catch (IOException ex) {
+            return false;
+        }
+    }
+
     private Path resolvePath(String specId) {
         return properties.specsDir().resolve(specId + ".json");
     }

@@ -55,7 +55,11 @@
                 <td class="actions">
                     <a th:href="'/plans/' + ${plan.planId}" class="btn-view">Details</a>
                     <form th:action="'/ui/plans/' + ${plan.planId} + '/run'" method="post" style="display:contents">
-                        <button type="submit" class="btn-run">▶ Run</button>
+                        <button type="submit" class="btn-run">&#9654; Run</button>
+                    </form>
+                    <form th:action="'/ui/plans/' + ${plan.planId} + '/delete'" method="post" style="display:contents"
+                          onsubmit="return confirm('Delete this plan?')">
+                        <button type="submit" class="btn-disable">&#128465; Delete</button>
                     </form>
                 </td>
             </tr>

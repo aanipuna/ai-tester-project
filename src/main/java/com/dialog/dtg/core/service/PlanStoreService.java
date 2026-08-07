@@ -63,4 +63,9 @@ public class PlanStoreService implements PlanStore {
         update(plan);
         return true;
     }
+
+    @Override
+    public boolean delete(String planId) {
+        return planJsonStore.delete(planId);
+    }
 }

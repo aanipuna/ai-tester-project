@@ -130,4 +130,22 @@ public class PageController {
         if (run != null) workflowService.buildReport(run);
         return "redirect:/runs/" + runId;
     }
+
+    @PostMapping("/ui/specs/{specId}/delete")
+    public String deleteSpec(@PathVariable String specId) {
+        specStore.delete(specId);
+        return "redirect:/specs";
+    }
+
+    @PostMapping("/ui/plans/{planId}/delete")
+    public String deletePlan(@PathVariable String planId) {
+        planStore.delete(planId);
+        return "redirect:/plans";
+    }
+
+    @PostMapping("/ui/runs/{runId}/delete")
+    public String deleteRun(@PathVariable String runId) {
+        runStore.delete(runId);
+        return "redirect:/runs";
+    }
 }

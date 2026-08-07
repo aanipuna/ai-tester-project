@@ -70,8 +70,10 @@
                         <button type="submit" class="btn-action">Build Report</button>
                     </form>
                     <a th:href="'/api/runs/' + ${run.runId} + '/report.html'" class="btn-view" target="_blank">View</a>
-                    <a th:href="'/api/runs/' + ${run.runId} + '/report.md'" class="btn-dl" download>⬇ MD</a>
-                </td>
+                    <a th:href="'/api/runs/' + ${run.runId} + '/report.md'" class="btn-dl" download>⬇ MD</a>                    <form th:action="'/ui/runs/' + ${run.runId} + '/delete'" method="post" style="display:contents"
+                          onsubmit="return confirm('Delete this run?')">
+                        <button type="submit" class="btn-disable">&#128465; Delete</button>
+                    </form>                </td>
             </tr>
             </tbody>
         </table>

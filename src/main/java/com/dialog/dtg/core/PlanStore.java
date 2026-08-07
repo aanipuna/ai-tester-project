@@ -15,4 +15,6 @@ public interface PlanStore {
     TestPlan update(TestPlan plan);
 
     boolean archive(String planId);
+
+    boolean delete(String planId);
 }

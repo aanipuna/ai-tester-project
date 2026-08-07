@@ -49,6 +49,19 @@ public class RunStore extends JsonRepositorySupport {
         return out;
     }
 
+    public boolean delete(String runId) {
+        Path dir = runDirectory(runId);
+        try {
+            if (!Files.exists(dir)) return false;
+            Files.walk(dir)
+                .sorted(java.util.Comparator.reverseOrder())
+                .forEach(p -> { try { Files.deleteIfExists(p); } catch (IOException ignored) {} });
+            return true;
+        } catch (IOException ex) {
+            return false;
+        }
+    }
+
     public Path runDirectory(String runId) {
         return properties.runsDir().resolve(runId);
     }

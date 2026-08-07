@@ -50,9 +50,15 @@
                 <td th:text="${spec.sourceType}">source</td>
                 <td th:text="${spec.importedAt}">-</td>
                 <td>
-                    <form th:action="'/ui/specs/' + ${spec.specId} + '/generate'" method="post" style="display:inline">
+                    <div class="actions">
+                    <form th:action="'/ui/specs/' + ${spec.specId} + '/generate'" method="post" style="display:contents">
                         <button type="submit" class="btn-action">Generate Plan</button>
                     </form>
+                    <form th:action="'/ui/specs/' + ${spec.specId} + '/delete'" method="post" style="display:contents"
+                          onsubmit="return confirm('Delete this spec?')">
+                        <button type="submit" class="btn-disable">&#128465; Delete</button>
+                    </form>
+                    </div>
                 </td>
             </tr>
             </tbody>
