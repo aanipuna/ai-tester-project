@@ -69,13 +69,29 @@ public class ScenarioGeneratorService implements ScenarioGenerator {
         plan.setStatus("active");
 
         List<TestCase> cases = new ArrayList<>();
-        cases.add(makeCase("TC-001", "positive", endpointSpec, endpointSpec.getExpectedSuccessStatus(), "Valid request should succeed"));
-        cases.add(makeCase("TC-002", "negative", endpointSpec, 400, "Missing required field should fail"));
-        cases.add(makeCase("TC-003", "boundary", endpointSpec, 400, "Boundary value behavior should be enforced"));
-        if (!"none".equalsIgnoreCase(endpointSpec.getAuthType())) {
-            cases.add(makeCase("TC-004", "auth", endpointSpec, 401, "Missing token should be unauthorized"));
+        List<com.dialog.dtg.core.model.ParameterSpec> params = endpointSpec.getParameters() != null ? endpointSpec.getParameters() : List.of();
+        List<String> reqNames = params.stream().filter(com.dialog.dtg.core.model.ParameterSpec::isRequired).map(com.dialog.dtg.core.model.ParameterSpec::getName).toList();
+        List<String> allNames = params.stream().map(com.dialog.dtg.core.model.ParameterSpec::getName).toList();
+        String paramSummary = reqNames.isEmpty() ? (allNames.isEmpty() ? "" : " (" + String.join(", ", allNames) + ")") : " (" + String.join(", ", reqNames) + ")";
+
+        cases.add(makeCase("TC-001", "positive", endpointSpec, endpointSpec.getExpectedSuccessStatus(),
+            "Valid request with all required params" + paramSummary + " — expect " + endpointSpec.getExpectedSuccessStatus()));
+        if (!reqNames.isEmpty()) {
+            for (int i = 0; i < Math.min(reqNames.size(), 2); i++) {
+                cases.add(makeCase("TC-00" + (i + 2), "negative", endpointSpec, 400,
+                    "Missing required field '" + reqNames.get(i) + "' — expect 400 Bad Request"));
+            }
+        } else {
+            cases.add(makeCase("TC-002", "negative", endpointSpec, 400, "Invalid or malformed request — expect 400 Bad Request"));
         }
-        cases.add(makeCase("TC-005", "idempotency", endpointSpec, endpointSpec.getExpectedSuccessStatus(), "Repeat call should remain consistent"));
+        cases.add(makeCase("TC-003", "boundary", endpointSpec, 400,
+            "Boundary/empty values" + (allNames.isEmpty() ? "" : " for " + String.join(", ", allNames)) + " — expect 400 Bad Request"));
+        if (!"none".equalsIgnoreCase(endpointSpec.getAuthType())) {
+            cases.add(makeCase("TC-004", "auth", endpointSpec, 401,
+                "No Authorization header sent to " + endpointSpec.getMethod() + " " + endpointSpec.getPath() + " — expect 401 Unauthorized"));
+        }
+        cases.add(makeCase("TC-005", "idempotency", endpointSpec, endpointSpec.getExpectedSuccessStatus(),
+            "Repeat identical call to " + endpointSpec.getMethod() + " " + endpointSpec.getPath() + " — response must be consistent"));
         plan.setTestCases(cases);
         return plan;
     }

@@ -20,7 +20,13 @@ public class PromptTemplateConfig {
         "3. BOUNDARY — min/max length strings, min/max numeric values, empty strings, zero, negative numbers where applicable\n" +
         "4. AUTH — missing token, expired/invalid token, insufficient scope/role (only if authType != none)\n" +
         "5. IDEMPOTENCY/DUPLICATE — repeated identical requests where relevant (e.g. POST creating a resource)\n\n" +
-        "For each test case, infer a realistic expected HTTP status code based on standard REST conventions and the constraints given.\n\n" +
+        "For each test case:\n" +
+        "- Use a HUMAN-READABLE description that includes parameter names and what is being tested.\n" +
+        "  Example good descriptions: 'Valid OTP request with mobile_number=+94771234567 — expect 200 OK'\n" +
+        "  Example good descriptions: 'Missing required field mobile_number — expect 400 Bad Request'\n" +
+        "  Example good descriptions: 'Empty string for mobile_number boundary test — expect 400'\n" +
+        "- Infer a realistic expected HTTP status code based on standard REST conventions.\n" +
+        "- Include realistic sample values in request bodies.\n\n" +
         "## Output format\n" +
         "Return ONLY valid JSON, no markdown fences, no commentary, matching exactly this schema:\n" +
         "{\n" +
@@ -30,7 +36,7 @@ public class PromptTemplateConfig {
         "    {\n" +
         "      \"id\": \"string (e.g. TC-001)\",\n" +
         "      \"category\": \"positive | negative | boundary | auth | idempotency\",\n" +
-        "      \"description\": \"string\",\n" +
+        "      \"description\": \"string — human-readable, includes parameter names and expected outcome\",\n" +
         "      \"request\": { \"method\": \"string\", \"path\": \"string\", \"headers\": {}, \"queryParams\": {}, \"body\": {} },\n" +
         "      \"expectedStatus\": number,\n" +
         "      \"expectedBehavior\": \"string\"\n" +
