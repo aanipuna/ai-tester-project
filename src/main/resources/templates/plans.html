@@ -40,24 +40,24 @@
             let controller = new AbortController();
             let startTime = Date.now();
 
-            // Cancel button inline
             let cancelBtn = document.createElement('button');
             cancelBtn.className = 'btn-disable';
-            cancelBtn.style.cssText = 'font-size:13px;margin-left:8px';
+            cancelBtn.style.cssText = 'font-size:13px;padding:4px 10px;white-space:nowrap';
             cancelBtn.textContent = 'Cancel';
             cancelBtn.onclick = () => controller.abort();
             btn.insertAdjacentElement('afterend', cancelBtn);
 
             btn.disabled = true;
-            btn.textContent = '\u23f3 Generating\u2026';
             btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-            // Tick elapsed time in the message area
+            // Tick elapsed time inside the button text
             let timer = setInterval(() => {
                 let s = Math.round((Date.now() - startTime) / 1000);
-                msg.textContent = '\u23f3 Running\u2026 ' + s + 's elapsed. Large specs take several minutes.';
+                btn.textContent = '\u23f3 Generating\u2026 ' + s + 's';
+                msg.textContent = 'Large specs take several minutes. You can cancel and it will stop.';
                 msg.style.color = 'var(--neutral-500)';
             }, 1000);
+            btn.textContent = '\u23f3 Generating\u2026';
 
             fetch('/api/plans/generate-all', {
                 method: 'POST',

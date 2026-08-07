@@ -126,50 +126,44 @@ function generateAll(btn, specId) {
 
     let controller = new AbortController();
     let startTime = Date.now();
-    let timerEl = document.createElement('span');
-    timerEl.style.cssText = 'font-size:12px;color:var(--neutral-400);margin-left:8px';
-    btn.parentNode.appendChild(timerEl);
 
-    // Add cancel button next to the generating button
     let cancelBtn = document.createElement('button');
     cancelBtn.className = 'btn-disable';
-    cancelBtn.style.cssText = 'font-size:12px;margin-left:6px';
+    cancelBtn.style.cssText = 'font-size:12px;padding:4px 10px;white-space:nowrap';
     cancelBtn.textContent = 'Cancel';
-    cancelBtn.onclick = () => { controller.abort(); };
-    btn.parentNode.appendChild(cancelBtn);
+    cancelBtn.onclick = () => controller.abort();
+    btn.insertAdjacentElement('afterend', cancelBtn);
 
     btn.disabled = true;
-    btn.textContent = '\u23f3 Generating\u2026';
-    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-    // Elapsed time counter
     let timer = setInterval(() => {
         let s = Math.round((Date.now() - startTime) / 1000);
-        timerEl.textContent = s + 's elapsed';
+        btn.textContent = '\u23f3 Generating\u2026 ' + s + 's';
     }, 1000);
+    btn.textContent = '\u23f3 Generating\u2026';
 
     fetch('/api/plans/generate-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ specId: specId }),
-        signal: controller.signal
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specId: specId }), signal: controller.signal
     })
     .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
     .then(data => {
         clearInterval(timer);
-        btn.textContent = '\u2713 ' + data.generated + ' plans generated!';
+        cancelBtn.remove();
+        let s = Math.round((Date.now() - startTime) / 1000);
+        btn.textContent = '\u2713 ' + data.generated + ' plans (' + s + 's)';
         btn.style.background = 'var(--success)';
         btn.style.color = '#fff';
-        timerEl.textContent = 'Done in ' + Math.round((Date.now() - startTime) / 1000) + 's';
-        cancelBtn.remove();
         btn.disabled = false;
         setTimeout(() => location.reload(), 2000);
     })
     .catch(err => {
         clearInterval(timer);
         cancelBtn.remove();
-        timerEl.remove();
         btn.disabled = false;
+        btn.style.background = '';
+        btn.style.color = '';
         btn.textContent = '\u26a1 Generate Plans';
         if (err.name !== 'AbortError') alert('Error: ' + (err || 'Failed'));
     });
