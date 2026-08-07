@@ -1,4 +1,8 @@
 target/
+start.ps1
+start.bat
+.env
+*.local.yml
 .idea/
 .vscode/
 *.log

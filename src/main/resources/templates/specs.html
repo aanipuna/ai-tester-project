@@ -51,9 +51,7 @@
                 <td th:text="${spec.importedAt}">-</td>
                 <td>
                     <div class="actions">
-                    <form th:action="'/ui/specs/' + ${spec.specId} + '/generate'" method="post" style="display:contents">
-                        <button type="submit" class="btn-action">Generate Plan</button>
-                    </form>
+                    <button class="btn-run" onclick="generateAll(this, '[[${spec.specId}]]')">&#9889; Generate Plans</button>
                     <form th:action="'/ui/specs/' + ${spec.specId} + '/delete'" method="post" style="display:contents"
                           onsubmit="return confirm('Delete this spec?')">
                         <button type="submit" class="btn-disable">&#128465; Delete</button>
@@ -111,13 +109,34 @@ function refreshTable() {
                     <td>${s.name || '-'}</td>
                     <td>${s.sourceType || '-'}</td>
                     <td>${s.importedAt ? new Date(s.importedAt).toLocaleString() : '-'}</td>
-                    <td>
-                        <form action="/ui/specs/${s.specId}/generate" method="post" style="display:inline">
-                            <button type="submit" class="btn-action">Generate Plan</button>
+                    <td><div class="actions">
+                        <button class="btn-run" onclick="generateAll(this, '${s.specId}')">&#9889; Generate Plans</button>
+                        <form action="/ui/specs/${s.specId}/delete" method="post" style="display:contents" onsubmit="return confirm('Delete this spec?')">
+                            <button type="submit" class="btn-disable">&#128465; Delete</button>
                         </form>
-                    </td>
+                    </div></td>
                 </tr>`).join('');
         });
+}
+
+function generateAll(btn, specId) {
+    if (!confirm('Generate test plans for all endpoints in this spec?')) return;
+    btn.disabled = true;
+    btn.textContent = '\u23f3 Generating\u2026';
+    fetch('/api/plans/generate-all', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specId: specId }) })
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(data => {
+        btn.textContent = '\u2713 ' + data.generated + ' plans generated!';
+        btn.style.background = 'var(--success)';
+        setTimeout(() => location.reload(), 1500);
+    })
+    .catch(err => {
+        alert('Error: ' + (err || 'Failed'));
+        btn.disabled = false;
+        btn.textContent = '\u26a1 Generate Plans';
+    });
+}
 }
 </script>
 <script>

@@ -20,37 +20,24 @@
     </header>
 
     <section class="card">
-        <h2>Generate Plan from Spec</h2>
-        <form id="gen-form">
-            <label>Spec
+        <h2>Generate Plans from Spec</h2>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+            <label style="flex:1;min-width:200px">Spec
                 <select id="gen-spec-select" required>
                     <option value="" disabled selected>— select a spec —</option>
                     <option th:each="spec : ${specs}" th:value="${spec.specId}"
-                        th:text="${spec.name} + ' (' + ${spec.specId} + ') — ' + ${spec.endpoints != null ? spec.endpoints.size() : 0} + ' endpoints'" />
+                        th:text="${spec.name} + ' — ' + ${spec.endpoints != null ? spec.endpoints.size() : 0} + ' endpoints'" />
                 </select>
             </label>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
-                <button type="submit" class="btn-action">Generate Plan</button>
-                <button type="button" id="btn-generate-all" class="btn-run">&#9889; Generate All Plans</button>
-                <span id="gen-msg" style="font-size:14px"></span>
-            </div>
-        </form>
+            <button id="btn-generate-all" class="btn-run" type="button">&#9889; Generate All Plans</button>
+            <span id="gen-msg" style="font-size:14px"></span>
+        </div>
         <script>
-        document.getElementById('gen-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const specId = document.getElementById('gen-spec-select').value;
-            if (!specId) return;
-            fetch('/api/plans', { method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({mode:'generate', specId: specId}) })
-            .then(r => r.ok ? location.reload() : r.text().then(t => alert('Error: ' + t)));
-        });
-
         document.getElementById('btn-generate-all').addEventListener('click', function() {
             const specId = document.getElementById('gen-spec-select').value;
             if (!specId) { alert('Please select a spec first.'); return; }
             const btn = this;
             const msg = document.getElementById('gen-msg');
-            if (!confirm('This will generate one test plan for every endpoint in the spec. Continue?')) return;
             btn.disabled = true;
             btn.textContent = '⏳ Generating…';
             msg.textContent = 'This may take a while for large specs…';
