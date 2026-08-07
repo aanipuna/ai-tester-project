@@ -54,6 +54,64 @@
                 onclick="resetReport()">Reset to Default</button>
     </section>
 
+    <!-- Global Auth Configuration -->
+    <section class="card">
+        <h2>&#128274; Global Auth Configuration</h2>
+        <p class="hint">Applied to all test requests unless the test case overrides it.</p>
+
+        <div style="margin-bottom:16px">
+            <label style="font-weight:600;display:block;margin-bottom:6px">Auth Type</label>
+            <select id="authType" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)">
+                <option value="none"     th:selected="${authConfig.authType?.name() == 'none'}">None</option>
+                <option value="bearer"   th:selected="${authConfig.authType?.name() == 'bearer'}">Bearer Token</option>
+                <option value="basic"    th:selected="${authConfig.authType?.name() == 'basic'}">Basic Auth</option>
+                <option value="api_key"  th:selected="${authConfig.authType?.name() == 'api_key'}">API Key (Header)</option>
+            </select>
+        </div>
+
+        <div id="auth-bearer" style="display:none">
+            <label style="font-weight:600;display:block;margin-bottom:6px">Bearer Token</label>
+            <input id="authToken" type="password" placeholder="eyJhbGci..." th:value="${authConfig.token}"
+                   style="width:100%;max-width:600px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-family:monospace;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+        </div>
+
+        <div id="auth-basic" style="display:none">
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:180px">
+                    <label style="font-weight:600;display:block;margin-bottom:6px">Username</label>
+                    <input id="authUsername" type="text" th:value="${authConfig.username}"
+                           style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+                </div>
+                <div style="flex:1;min-width:180px">
+                    <label style="font-weight:600;display:block;margin-bottom:6px">Password</label>
+                    <input id="authPassword" type="password" th:value="${authConfig.password}"
+                           style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+                </div>
+            </div>
+        </div>
+
+        <div id="auth-apikey" style="display:none">
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <div style="flex:0 0 200px">
+                    <label style="font-weight:600;display:block;margin-bottom:6px">Header Name</label>
+                    <input id="authApiKeyHeader" type="text" th:value="${authConfig.apiKeyHeader}" placeholder="X-Api-Key"
+                           style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+                </div>
+                <div style="flex:1;min-width:200px">
+                    <label style="font-weight:600;display:block;margin-bottom:6px">Key Value</label>
+                    <input id="authApiKeyValue" type="password" th:value="${authConfig.token}"
+                           style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-family:monospace;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+            <button class="btn-run" onclick="saveAuth()">&#10003; Save Auth</button>
+            <button class="btn-disable" onclick="clearAuth()">Clear Auth</button>
+            <span id="auth-msg"></span>
+        </div>
+    </section>
+
     <div class="save-row">
         <button class="btn-run" onclick="saveTemplates()">&#10003; Save Templates</button>
         <span id="save-msg"></span>
@@ -61,6 +119,37 @@
 </div>
 
 <script>
+// Show/hide auth fields based on selected type
+function updateAuthFields() {
+    const type = document.getElementById('authType').value;
+    document.getElementById('auth-bearer').style.display = type === 'bearer' ? 'block' : 'none';
+    document.getElementById('auth-basic').style.display  = type === 'basic'  ? 'block' : 'none';
+    document.getElementById('auth-apikey').style.display = type === 'api_key'? 'block' : 'none';
+}
+document.getElementById('authType').addEventListener('change', updateAuthFields);
+updateAuthFields();
+
+function saveAuth() {
+    const type = document.getElementById('authType').value;
+    const payload = { authType: type };
+    if (type === 'bearer')  payload.token = document.getElementById('authToken').value;
+    if (type === 'basic')   { payload.username = document.getElementById('authUsername').value; payload.password = document.getElementById('authPassword').value; }
+    if (type === 'api_key') { payload.token = document.getElementById('authApiKeyValue').value; payload.apiKeyHeader = document.getElementById('authApiKeyHeader').value; }
+
+    const msg = document.getElementById('auth-msg');
+    fetch('/api/auth-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(r => r.ok ? (msg.textContent = '✓ Saved!', msg.className = 'msg-ok') : Promise.reject())
+        .catch(() => { msg.textContent = '✗ Failed'; msg.className = 'msg-err'; });
+}
+
+function clearAuth() {
+    document.getElementById('authType').value = 'none';
+    ['authToken','authUsername','authPassword','authApiKeyHeader','authApiKeyValue'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+    updateAuthFields();
+    saveAuth();
+}
 const DEFAULT_PLAN_TEXT = `You are an API test scenario generator. Given the API specification below, generate a comprehensive test plan.
 
 ## API Specification

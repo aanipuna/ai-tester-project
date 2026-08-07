@@ -5,6 +5,7 @@ import com.dialog.dtg.core.model.TestCase;
 import com.dialog.dtg.core.model.TestPlan;
 import com.dialog.dtg.core.model.TestRun;
 import com.dialog.dtg.core.service.WorkflowService;
+import com.dialog.dtg.core.store.AuthConfigStore;
 import com.dialog.dtg.core.store.ReportStore;
 import com.dialog.dtg.core.store.RunStore;
 import com.dialog.dtg.core.store.SpecStore;
@@ -28,16 +29,18 @@ public class PageController {
     private final ReportStore reportStore;
     private final WorkflowService workflowService;
     private final TemplateConfigStore templateConfigStore;
+    private final AuthConfigStore authConfigStore;
 
     public PageController(SpecStore specStore, PlanStore planStore, RunStore runStore,
                           ReportStore reportStore, WorkflowService workflowService,
-                          TemplateConfigStore templateConfigStore) {
+                          TemplateConfigStore templateConfigStore, AuthConfigStore authConfigStore) {
         this.specStore = specStore;
         this.planStore = planStore;
         this.runStore = runStore;
         this.reportStore = reportStore;
         this.workflowService = workflowService;
         this.templateConfigStore = templateConfigStore;
+        this.authConfigStore = authConfigStore;
     }
 
     @GetMapping("/")
@@ -93,6 +96,7 @@ public class PageController {
     @GetMapping("/settings")
     public String settings(Model model) {
         model.addAttribute("templates", templateConfigStore.load());
+        model.addAttribute("authConfig", authConfigStore.load());
         return "settings";
     }
 

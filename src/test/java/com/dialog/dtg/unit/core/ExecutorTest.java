@@ -6,6 +6,7 @@ import com.dialog.dtg.core.model.TestCase;
 import com.dialog.dtg.core.model.TestPlan;
 import com.dialog.dtg.core.service.ExecutorService;
 import com.dialog.dtg.core.store.AtomicFileWriter;
+import com.dialog.dtg.core.store.AuthConfigStore;
 import com.dialog.dtg.core.store.FileLockManager;
 import com.dialog.dtg.core.store.RunStore;
 import com.dialog.dtg.core.store.SchemaMigrationService;
@@ -25,7 +26,7 @@ class ExecutorTest {
         DataPathProperties props = new DataPathProperties();
         ObjectMapper mapper = new ObjectMapper();
         RunStore runStore = new RunStore(mapper, new AtomicFileWriter(), new FileLockManager(), props);
-        ExecutorService executor = new ExecutorService(WebClient.builder(), runStore, new SchemaMigrationService(props));
+        ExecutorService executor = new ExecutorService(WebClient.builder(), runStore, new SchemaMigrationService(props), new AuthConfigStore(mapper, new AtomicFileWriter(), props));
 
         TestCase tc = new TestCase();
         tc.setId("TC-1");
@@ -50,7 +51,7 @@ class ExecutorTest {
         DataPathProperties props = new DataPathProperties();
         ObjectMapper mapper = new ObjectMapper();
         RunStore runStore = new RunStore(mapper, new AtomicFileWriter(), new FileLockManager(), props);
-        ExecutorService executor = new ExecutorService(WebClient.builder(), runStore, new SchemaMigrationService(props));
+        ExecutorService executor = new ExecutorService(WebClient.builder(), runStore, new SchemaMigrationService(props), new AuthConfigStore(mapper, new AtomicFileWriter(), props));
 
         TestCase tc = new TestCase();
         tc.setId("TC-2");

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ScenarioGeneratorService implements ScenarioGenerator {
@@ -90,6 +91,31 @@ public class ScenarioGeneratorService implements ScenarioGenerator {
         RequestSpec request = new RequestSpec();
         request.setMethod(endpointSpec.getMethod());
         request.setPath(endpointSpec.getPath());
+
+        // Build a sample JSON body for methods that accept a body
+        String method = endpointSpec.getMethod();
+        boolean needsBody = method.equalsIgnoreCase("POST") || method.equalsIgnoreCase("PUT")
+                || method.equalsIgnoreCase("PATCH");
+        if (needsBody && endpointSpec.getParameters() != null && !endpointSpec.getParameters().isEmpty()) {
+            Map<String, Object> bodyMap = new java.util.LinkedHashMap<>();
+            for (var p : endpointSpec.getParameters()) {
+                if ("query".equalsIgnoreCase(p.getLocation())) continue;
+                Object sampleValue = switch (p.getDataType() != null ? p.getDataType().toLowerCase() : "string") {
+                    case "number", "integer", "int" -> "negative".equals(category) ? -1 : 1;
+                    case "boolean" -> true;
+                    default -> "negative".equals(category) ? null : "sample_" + p.getName();
+                };
+                if (sampleValue != null || "negative".equals(category)) {
+                    bodyMap.put(p.getName(), sampleValue);
+                }
+            }
+            if (!bodyMap.isEmpty()) {
+                try {
+                    request.setBody(objectMapper.writeValueAsString(bodyMap));
+                } catch (Exception ignored) {}
+            }
+        }
+
         tc.setRequest(request);
         return tc;
     }

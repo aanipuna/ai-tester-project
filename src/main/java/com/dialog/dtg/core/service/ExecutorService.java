@@ -2,11 +2,13 @@ package com.dialog.dtg.core.service;
 
 import com.dialog.dtg.core.Executor;
 import com.dialog.dtg.core.model.AssertionResult;
+import com.dialog.dtg.core.model.AuthConfig;
 import com.dialog.dtg.core.model.CaseResult;
 import com.dialog.dtg.core.model.RunSummary;
 import com.dialog.dtg.core.model.TestCase;
 import com.dialog.dtg.core.model.TestPlan;
 import com.dialog.dtg.core.model.TestRun;
+import com.dialog.dtg.core.store.AuthConfigStore;
 import com.dialog.dtg.core.store.RunStore;
 import com.dialog.dtg.core.store.SchemaMigrationService;
 import org.slf4j.Logger;
@@ -28,11 +30,14 @@ public class ExecutorService implements Executor {
     private final WebClient webClient;
     private final RunStore runStore;
     private final SchemaMigrationService schemaMigrationService;
+    private final AuthConfigStore authConfigStore;
 
-    public ExecutorService(WebClient.Builder webClientBuilder, RunStore runStore, SchemaMigrationService schemaMigrationService) {
+    public ExecutorService(WebClient.Builder webClientBuilder, RunStore runStore,
+                           SchemaMigrationService schemaMigrationService, AuthConfigStore authConfigStore) {
         this.webClient = webClientBuilder.build();
         this.runStore = runStore;
         this.schemaMigrationService = schemaMigrationService;
+        this.authConfigStore = authConfigStore;
     }
 
     @Override
@@ -46,6 +51,7 @@ public class ExecutorService implements Executor {
 
         String baseUrl = plan.getBaseUrl() != null ? plan.getBaseUrl() : "";
         List<CaseResult> results = new ArrayList<>();
+        AuthConfig auth = authConfigStore.load();
         for (TestCase tc : plan.getTestCases()) {
             if (!tc.isEnabled()) {
                 CaseResult skipped = new CaseResult();
@@ -55,7 +61,7 @@ public class ExecutorService implements Executor {
                 results.add(skipped);
                 continue;
             }
-            results.add(runCase(tc, baseUrl));
+            results.add(runCase(tc, baseUrl, auth));
         }
 
         run.setFinishedAt(Instant.now());
@@ -68,7 +74,7 @@ public class ExecutorService implements Executor {
         return run;
     }
 
-    private CaseResult runCase(TestCase tc, String baseUrl) {
+    private CaseResult runCase(TestCase tc, String baseUrl, AuthConfig auth) {
         CaseResult result = new CaseResult();
         result.setTestCaseId(tc.getId());
         result.setCategory(tc.getCategory());
@@ -85,15 +91,28 @@ public class ExecutorService implements Executor {
             boolean hasBody = !reqBody.isBlank() && !method.equalsIgnoreCase("GET")
                     && !method.equalsIgnoreCase("HEAD") && !method.equalsIgnoreCase("DELETE");
 
-            var spec = webClient.method(HttpMethod.valueOf(method))
-                .uri(uri)
-                .headers(headers -> {
-                    headers.setAll(tc.getRequest().getHeaders());
-                    if (hasBody) headers.setContentType(MediaType.APPLICATION_JSON);
-                });
+            // Build request spec — attach body for POST/PUT/PATCH when present
+            WebClient.RequestHeadersSpec<?> reqSpec;
+            if (hasBody) {
+                reqSpec = webClient.method(HttpMethod.valueOf(method))
+                    .uri(uri)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> {
+                        headers.setAll(tc.getRequest().getHeaders());
+                        applyAuth(headers, auth);
+                    })
+                    .bodyValue(reqBody);
+            } else {
+                reqSpec = webClient.method(HttpMethod.valueOf(method))
+                    .uri(uri)
+                    .headers(headers -> {
+                        headers.setAll(tc.getRequest().getHeaders());
+                        applyAuth(headers, auth);
+                    });
+            }
 
             // Capture status code before body Mono to avoid null when body is empty
-            int status = spec.exchangeToMono(r -> {
+            int status = reqSpec.exchangeToMono(r -> {
                     int code = r.statusCode().value();
                     return r.bodyToMono(String.class)
                             .defaultIfEmpty("")
@@ -129,6 +148,30 @@ public class ExecutorService implements Executor {
         }
 
         return result;
+    }
+
+    private void applyAuth(org.springframework.http.HttpHeaders headers, AuthConfig auth) {
+        if (auth == null || auth.getAuthType() == null) return;
+        switch (auth.getAuthType()) {
+            case bearer -> {
+                if (auth.getToken() != null && !auth.getToken().isBlank())
+                    headers.set("Authorization", "Bearer " + auth.getToken());
+            }
+            case basic -> {
+                if (auth.getUsername() != null && !auth.getUsername().isBlank()) {
+                    String creds = auth.getUsername() + ":" + (auth.getPassword() != null ? auth.getPassword() : "");
+                    String encoded = java.util.Base64.getEncoder().encodeToString(creds.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    headers.set("Authorization", "Basic " + encoded);
+                }
+            }
+            case api_key -> {
+                String headerName = auth.getApiKeyHeader() != null && !auth.getApiKeyHeader().isBlank()
+                        ? auth.getApiKeyHeader() : "X-Api-Key";
+                if (auth.getToken() != null && !auth.getToken().isBlank())
+                    headers.set(headerName, auth.getToken());
+            }
+            default -> {}
+        }
     }
 
     private RunSummary summarize(List<CaseResult> results) {
