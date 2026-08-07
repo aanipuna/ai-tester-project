@@ -42,7 +42,8 @@
     <section class="card">
         <h2>Known Specs</h2>
         <div style="overflow-x:auto">
-        <table><th>Name</th><th>Source</th><th>Imported</th><th>Actions</th></tr></thead>
+        <table>
+            <thead><tr><th>Spec ID</th><th>Name</th><th>Source</th><th>Imported</th><th>Actions</th></tr></thead>
             <tbody id="spec-tbody">
             <tr th:each="spec : ${specs}">
                 <td th:text="${spec.specId}">spec-id</td>
@@ -63,6 +64,8 @@
         </table>
         </div>
     </section>
+
+<script>
 document.getElementById('upload-form').addEventListener('submit', function(e) {
     e.preventDefault();
     const btn = document.getElementById('upload-btn');
