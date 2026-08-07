@@ -24,7 +24,12 @@ public class CliRunner implements ApplicationRunner {
             return;
         }
 
+        // Skip if first arg is a Spring Boot property (--key=value), not a CLI command
         String command = sourceArgs[0];
+        if (command.startsWith("-")) {
+            return;
+        }
+
         int exitCode = switch (command) {
             case "generate" -> generateCommand.run(sourceArgs);
             case "run" -> runCommand.run(sourceArgs);
