@@ -24,4 +24,9 @@ public class AuthConfig {
 
     public String getApiKeyHeader() { return apiKeyHeader; }
     public void setApiKeyHeader(String apiKeyHeader) { this.apiKeyHeader = apiKeyHeader; }
+
+    public java.util.Map<String, String> getGlobalHeaders() { return globalHeaders; }
+    public void setGlobalHeaders(java.util.Map<String, String> globalHeaders) { this.globalHeaders = globalHeaders != null ? globalHeaders : new java.util.LinkedHashMap<>(); }
+
+    private java.util.Map<String, String> globalHeaders = new java.util.LinkedHashMap<>();
 }

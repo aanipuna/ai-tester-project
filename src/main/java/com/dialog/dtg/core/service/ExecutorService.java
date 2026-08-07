@@ -172,6 +172,12 @@ public class ExecutorService implements Executor {
             }
             default -> {}
         }
+        // Apply any additional global headers on top of auth
+        if (auth.getGlobalHeaders() != null) {
+            auth.getGlobalHeaders().forEach((k, v) -> {
+                if (k != null && !k.isBlank()) headers.set(k, v != null ? v : "");
+            });
+        }
     }
 
     private RunSummary summarize(List<CaseResult> results) {

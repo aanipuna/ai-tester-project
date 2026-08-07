@@ -112,6 +112,52 @@
         </div>
     </section>
 
+    <!-- Global Headers -->
+    <section class="card">
+        <h2>&#127760; Global Headers</h2>
+        <p class="hint">Additional headers sent on every test request (applied after auth). Add auth tokens, tenant IDs, trace IDs, or any custom header.</p>
+
+        <div id="global-hdr-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+            <div th:each="entry : ${authConfig.globalHeaders}" class="global-hdr-pair"
+                 style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input class="ghdr-key" type="text" th:value="${entry.key}" placeholder="Header name"
+                       style="width:220px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-family:monospace;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+                <input class="ghdr-val" type="text" th:value="${entry.value}" placeholder="Value"
+                       style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+                <button class="btn-disable" onclick="this.closest('.global-hdr-pair').remove()" style="flex:0 0 auto">&#10005;</button>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:10px;border-top:1px dashed #d1d5db" id="ghdr-add-row">
+            <select id="ghdr-preset" onchange="applyGhdrPreset()" style="min-width:210px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)">
+                <option value="">&#43; Standard headers…</option>
+                <option value="Authorization|Bearer ">Authorization: Bearer …</option>
+                <option value="Authorization|Basic ">Authorization: Basic …</option>
+                <option value="X-Api-Key|">X-Api-Key</option>
+                <option value="X-Auth-Token|">X-Auth-Token</option>
+                <option value="X-Tenant-ID|">X-Tenant-ID</option>
+                <option value="X-Request-ID|">X-Request-ID</option>
+                <option value="X-Correlation-ID|">X-Correlation-ID</option>
+                <option value="Accept|application/json">Accept: application/json</option>
+                <option value="Content-Type|application/json">Content-Type: application/json</option>
+                <option value="Cache-Control|no-cache">Cache-Control: no-cache</option>
+                <option value="User-Agent|">User-Agent</option>
+                <option value="custom|">Custom header…</option>
+            </select>
+            <input id="ghdr-new-key" type="text" placeholder="Header name"
+                   style="width:200px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-family:monospace;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+            <input id="ghdr-new-val" type="text" placeholder="Value"
+                   style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" />
+            <button class="btn-run" onclick="addGlobalHeader()" style="flex:0 0 auto;white-space:nowrap">&#43; Add Header</button>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+            <button class="btn-run" onclick="saveGlobalHeaders()">&#10003; Save Headers</button>
+            <button class="btn-disable" onclick="clearGlobalHeaders()">Clear All</button>
+            <span id="ghdr-msg"></span>
+        </div>
+    </section>
+
     <div class="save-row">
         <button class="btn-run" onclick="saveTemplates()">&#10003; Save Templates</button>
         <span id="save-msg"></span>
@@ -149,6 +195,52 @@ function clearAuth() {
     });
     updateAuthFields();
     saveAuth();
+}
+
+function applyGhdrPreset() {
+    const sel = document.getElementById('ghdr-preset');
+    if (!sel.value) return;
+    const [k, v] = sel.value.split('|');
+    document.getElementById('ghdr-new-key').value = k;
+    document.getElementById('ghdr-new-val').value = v || '';
+    document.getElementById('ghdr-new-val').focus();
+    sel.value = '';
+}
+
+function addGlobalHeader() {
+    const key = document.getElementById('ghdr-new-key').value.trim();
+    const val = document.getElementById('ghdr-new-val').value.trim();
+    if (!key) { document.getElementById('ghdr-new-key').focus(); return; }
+    const list = document.getElementById('global-hdr-list');
+    const pair = document.createElement('div');
+    pair.className = 'global-hdr-pair';
+    pair.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+    pair.innerHTML = `<input class="ghdr-key" type="text" value="${key.replace(/"/g,'&quot;')}" placeholder="Header name" style="width:220px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-family:monospace;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" /><input class="ghdr-val" type="text" value="${val.replace(/"/g,'&quot;')}" placeholder="Value" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;background:var(--card-bg);color:var(--text-color)" /><button class="btn-disable" onclick="this.closest('.global-hdr-pair').remove()" style="flex:0 0 auto">✕</button>`;
+    list.appendChild(pair);
+    document.getElementById('ghdr-new-key').value = '';
+    document.getElementById('ghdr-new-val').value = '';
+}
+
+function saveGlobalHeaders() {
+    const pairs = document.querySelectorAll('.global-hdr-pair');
+    const globalHeaders = {};
+    pairs.forEach(p => {
+        const k = p.querySelector('.ghdr-key').value.trim();
+        const v = p.querySelector('.ghdr-val').value.trim();
+        if (k) globalHeaders[k] = v;
+    });
+    // Merge with existing auth config
+    const msg = document.getElementById('ghdr-msg');
+    fetch('/api/auth-config').then(r => r.json()).then(existing => {
+        existing.globalHeaders = globalHeaders;
+        return fetch('/api/auth-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(existing) });
+    }).then(r => r.ok ? (msg.textContent = '✓ Saved ' + Object.keys(globalHeaders).length + ' header(s)!', msg.className = 'msg-ok') : Promise.reject())
+      .catch(() => { msg.textContent = '✗ Failed'; msg.className = 'msg-err'; });
+}
+
+function clearGlobalHeaders() {
+    document.getElementById('global-hdr-list').innerHTML = '';
+    saveGlobalHeaders();
 }
 const DEFAULT_PLAN_TEXT = `You are an API test scenario generator. Given the API specification below, generate a comprehensive test plan.
 
