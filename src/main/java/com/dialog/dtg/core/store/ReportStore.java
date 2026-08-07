@@ -54,11 +54,12 @@ public class ReportStore {
           .append("- Errors: ").append(report.getMetrics().getErrors()).append("\n\n")
           .append("## Narrative\n").append(report.getNarrativeSummary()).append("\n\n")
           .append("## Test Case Results\n\n")
-          .append("| Case | Category | Status | HTTP | Time (ms) | Request | Response |\n")
-          .append("|------|----------|--------|------|-----------|---------|----------|\n");
+          .append("| Case | Description | Category | Status | HTTP | Time (ms) | Request | Response |\n")
+          .append("|------|-------------|----------|--------|------|-----------|---------|----------|\n");
         if (report.getResults() != null) {
             for (var r : report.getResults()) {
                 sb.append("| ").append(safe(r.getTestCaseId()))
+                  .append(" | ").append(safe(r.getDescription()))
                   .append(" | ").append(safe(r.getCategory()))
                   .append(" | ").append(safe(r.getStatus()))
                   .append(" | ").append(r.getHttpStatus() != null ? r.getHttpStatus() : "-")
@@ -97,13 +98,14 @@ public class ReportStore {
           .append("</ul>");
         sb.append("<h2>Narrative</h2><p>").append(esc(report.getNarrativeSummary())).append("</p>");
         sb.append("<h2>Test Case Results</h2><table>")
-          .append("<thead><tr><th>Case</th><th>Category</th><th>Status</th><th>HTTP</th><th>Time&nbsp;(ms)</th>")
+          .append("<thead><tr><th>Case</th><th>Description</th><th>Category</th><th>Status</th><th>HTTP</th><th>Time&nbsp;(ms)</th>")
           .append("<th>Request</th><th>Request Body</th><th>Response</th><th>Failure</th></tr></thead><tbody>");
         if (report.getResults() != null) {
             for (var r : report.getResults()) {
                 String cls = "pass".equals(r.getStatus()) ? "pass" : "fail".equals(r.getStatus()) ? "fail" : "error";
                 sb.append("<tr>")
                   .append("<td>").append(esc(r.getTestCaseId())).append("</td>")
+                  .append("<td style='font-size:0.88rem'>").append(esc(r.getDescription())).append("</td>")
                   .append("<td>").append(esc(r.getCategory())).append("</td>")
                   .append("<td class='").append(cls).append("'><strong>").append(esc(r.getStatus())).append("</strong></td>")
                   .append("<td>").append(r.getHttpStatus() != null ? r.getHttpStatus() : "-").append("</td>")

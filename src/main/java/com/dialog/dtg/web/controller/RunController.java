@@ -28,6 +28,11 @@ public class RunController {
         return workflowService.runPlan(planId);
     }
 
+    @GetMapping("/api/runs")
+    public java.util.List<TestRun> listRuns() {
+        return runStore.list();
+    }
+
     @GetMapping("/api/runs/{runId}")
     public TestRun getRun(@PathVariable String runId) {
         TestRun run = runStore.get(runId);
