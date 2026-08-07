@@ -10,8 +10,9 @@
         .edit-input:focus { outline:none; border-color:var(--primary); }
         .edit-select { padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.9rem; background:var(--card-bg); color:var(--text-color); cursor:pointer; transition:border-color 0.2s; }
         .edit-select:focus { outline:none; border-color:var(--primary); }
-        .edit-area   { width:100%; min-height:48px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.85rem; font-family:monospace; resize:vertical; background:var(--card-bg); color:var(--text-color); transition:border-color 0.2s; }
+        .edit-area   { width:100%; min-height:72px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.85rem; font-family:monospace; resize:vertical; background:var(--card-bg); color:var(--text-color); transition:border-color 0.2s; box-sizing:border-box; display:block; }
         .edit-area:focus { outline:none; border-color:var(--primary); }
+        .edit-area::placeholder { color:var(--neutral-400); font-style:italic; }
         .toolbar     { display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap; }
         #view-mode, #edit-mode { display:block; }
         #edit-mode   { display:none; }
@@ -113,7 +114,7 @@
                 <tr>
                     <th>ID</th><th>Enabled</th><th>Category</th><th>Method</th>
                     <th>Path</th><th>Exp&nbsp;Status</th><th>Description</th>
-                    <th>Request Body</th><th>Timeout&nbsp;(ms)</th>
+                    <th>Request Body</th><th>Timeout&nbsp;(ms)</th><th></th>
                 </tr>
             </thead>
             <tbody>
@@ -173,8 +174,9 @@
                     </select>
                 </td>
                 <td><input class="edit-input edit-desc" th:value="${tc.description}" style="min-width:160px" /></td>
-                <td><textarea class="edit-area edit-body" th:text="${tc.request?.body}" style="min-width:140px"></textarea></td>
+                <td><textarea class="edit-area edit-body" th:text="${tc.request?.body}" placeholder="{&amp;quot;key&amp;quot;: &amp;quot;value&amp;quot;}" style="min-width:160px"></textarea></td>
                 <td><input type="number" class="edit-input edit-timeout" th:value="${tc.timeoutMs}" style="width:80px" /></td>
+                <td><button type="button" class="btn-disable" style="font-size:12px;padding:4px 8px" onclick="this.closest('tr').remove()">&#10005;</button></td>
             </tr>
             </tbody>
         </table>
@@ -182,6 +184,7 @@
 
         <div class="save-bar">
             <button class="btn-run" onclick="savePlan()">&#10003; Save Changes</button>
+            <button class="btn-action" onclick="addTestCase()" type="button">&#43; Add Test Case</button>
             <button class="btn-disable" onclick="cancelEdit()">Cancel</button>
             <span id="save-msg2"></span>
         </div>
@@ -200,6 +203,79 @@ function cancelEdit() {
     document.getElementById('edit-mode').style.display = 'none';
     document.getElementById('btn-edit').style.display = '';
     document.getElementById('btn-cancel').style.display = 'none';
+}
+
+let newCaseCounter = 0;
+function addTestCase() {
+    newCaseCounter++;
+    const id = 'NEW-' + String(newCaseCounter).padStart(3, '0');
+    const statuses = [100,101,200,201,202,204,206,300,301,302,303,304,307,308,400,401,403,404,405,409,410,429,500,501,502,503,504];
+    const categories = ['positive','negative','boundary','auth','idempotency'];
+    const methods = ['GET','POST','PUT','PATCH','DELETE'];
+
+    function makeSelect(cls, options, selected) {
+        const sel = document.createElement('select');
+        sel.className = 'edit-select ' + cls;
+        options.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o; opt.textContent = o;
+            if (o === selected) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        return sel;
+    }
+    function makeTd(content) {
+        const td = document.createElement('td');
+        if (content instanceof Node) td.appendChild(content); else td.textContent = content;
+        return td;
+    }
+
+    const row = document.createElement('tr');
+    row.dataset.id = id;
+
+    // ID cell
+    const idTd = document.createElement('td');
+    idTd.style.cssText = 'font-size:12px;color:var(--neutral-500)';
+    idTd.textContent = id;
+    row.appendChild(idTd);
+
+    // Enabled checkbox
+    const cbTd = document.createElement('td');
+    cbTd.style.textAlign = 'center';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.className = 'edit-enabled'; cb.checked = true;
+    cbTd.appendChild(cb); row.appendChild(cbTd);
+
+    row.appendChild(makeTd(makeSelect('edit-category', categories, 'positive')));
+    row.appendChild(makeTd(makeSelect('edit-method', methods, 'POST')));
+
+    const pathInput = document.createElement('input');
+    pathInput.className = 'edit-input edit-path'; pathInput.value = '/'; pathInput.style.minWidth = '120px';
+    row.appendChild(makeTd(pathInput));
+
+    row.appendChild(makeTd(makeSelect('edit-status', statuses.map(String), '200')));
+
+    const descInput = document.createElement('input');
+    descInput.className = 'edit-input edit-desc'; descInput.placeholder = 'Description'; descInput.style.minWidth = '160px';
+    row.appendChild(makeTd(descInput));
+
+    const bodyTa = document.createElement('textarea');
+    bodyTa.className = 'edit-area edit-body'; bodyTa.placeholder = '{"key": "value"}'; bodyTa.style.minWidth = '160px';
+    row.appendChild(makeTd(bodyTa));
+
+    const timeoutInput = document.createElement('input');
+    timeoutInput.type = 'number'; timeoutInput.className = 'edit-input edit-timeout'; timeoutInput.value = '10000'; timeoutInput.style.width = '80px';
+    row.appendChild(makeTd(timeoutInput));
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button'; removeBtn.className = 'btn-disable';
+    removeBtn.style.cssText = 'font-size:12px;padding:4px 8px';
+    removeBtn.textContent = '✕';
+    removeBtn.onclick = () => row.remove();
+    row.appendChild(makeTd(removeBtn));
+
+    document.querySelector('#edit-table tbody').appendChild(row);
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function savePlan() {

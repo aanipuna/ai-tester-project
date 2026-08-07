@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/plans")
@@ -48,6 +49,14 @@ public class PlanController {
             throw new IllegalArgumentException("Spec not found: " + request.getSpecId());
         }
         return workflowService.generatePlanFromSpec(spec, request.getEndpointId());
+    }
+
+    @PostMapping("/generate-all")
+    public Map<String, Object> generateAll(@RequestBody Map<String, String> body) {
+        NormalizedSpec spec = specStore.get(body.get("specId"));
+        if (spec == null) throw new IllegalArgumentException("Spec not found: " + body.get("specId"));
+        List<TestPlan> plans = workflowService.generateAllPlansFromSpec(spec);
+        return Map.of("generated", plans.size(), "specId", spec.getSpecId());
     }
 
     @GetMapping
