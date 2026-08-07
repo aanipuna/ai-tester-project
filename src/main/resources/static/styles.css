@@ -1,30 +1,30 @@
 ﻿:root {
-    --primary: #2563eb;
-    --primary-dark: #1e40af;
-    --primary-light: #dbeafe;
-    --success: #16a34a;
-    --success-light: #dcfce7;
-    --danger: #dc2626;
-    --danger-light: #fee2e2;
-    --warning: #ea580c;
-    --warning-light: #fed7aa;
-    --neutral-50: #f9fafb;
-    --neutral-100: #f3f4f6;
-    --neutral-200: #e5e7eb;
-    --neutral-300: #d1d5db;
-    --neutral-400: #9ca3af;
-    --neutral-500: #6b7280;
-    --neutral-600: #4b5563;
-    --neutral-700: #374151;
-    --neutral-800: #1f2937;
-    --neutral-900: #111827;
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --primary-light: #eff6ff;
+    --success: #22c55e;
+    --success-light: #f0fdf4;
+    --danger: #f87171;
+    --danger-light: #fef2f2;
+    --warning: #fb923c;
+    --warning-light: #fff7ed;
+    --neutral-50: #f8fafc;
+    --neutral-100: #f1f5f9;
+    --neutral-200: #e2e8f0;
+    --neutral-300: #cbd5e1;
+    --neutral-400: #94a3b8;
+    --neutral-500: #64748b;
+    --neutral-600: #475569;
+    --neutral-700: #334155;
+    --neutral-800: #1e293b;
+    --neutral-900: #0f172a;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     --bg-color: #f0f9ff;
-    --text-color: #374151;
-    --card-bg: rgba(255, 255, 255, 0.75);
-    --card-border: rgba(255, 255, 255, 0.3);
+    --text-color: #334155;
+    --card-bg: rgba(255, 255, 255, 0.78);
+    --card-border: rgba(255, 255, 255, 0.4);
 }
 
 body.dark-mode {
@@ -49,7 +49,7 @@ body {
     font-size: 15px;
     line-height: 1.6;
     color: var(--text-color);
-    background: linear-gradient(135deg, var(--bg-color) 0%, #f5fafc 50%, #eff6ff 100%);
+    background: linear-gradient(135deg, #f0f9ff 0%, #f8faff 50%, #eef5ff 100%);
     min-height: 100vh;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
