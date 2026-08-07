@@ -49,16 +49,9 @@
             <input id="wf-baseurl" class="wf-input" placeholder="https://stg.example.com" th:value="${workflow?.baseUrl ?: ''}" />
         </div>
 
-        <!-- Workflow variables -->
+        <!-- Workflow variables (populated by JS from EXISTING_VARS) -->
         <div class="section-label">Workflow Variables</div>
-        <div id="wf-vars-list">
-            <div th:each="entry : ${workflow?.variables}" class="rule-editor wf-var-row">
-                <input class="wf-input var-key" style="width:180px;flex:0 0 auto" placeholder="variableName" th:value="${entry.key}" />
-                <span style="color:var(--neutral-400)">=</span>
-                <input class="wf-input var-val" style="flex:1" placeholder="value" th:value="${entry.value}" />
-                <button type="button" class="btn-disable" style="padding:4px 8px" onclick="this.closest('.wf-var-row').remove()">✕</button>
-            </div>
-        </div>
+        <div id="wf-vars-list"></div>
         <button type="button" class="btn-action" style="font-size:13px;margin-top:4px" onclick="addVar()">&#43; Add Variable</button>
     </section>
 
@@ -77,115 +70,198 @@
 </div>
 
 <script th:inline="javascript">
+// Data only — no functions here to avoid Thymeleaf HTML parsing issues with template literals
 const WORKFLOW_ID = /*[[${workflow?.workflowId}]]*/ null;
 const EXISTING_STEPS = /*[[${workflow?.steps}]]*/ [];
-
+const EXISTING_VARS = /*[[${workflow?.variables}]]*/ {};
+</script>
+<script>
+// All editor functions in a plain script block (no th:inline) to avoid Thymeleaf parsing issues
 const HTTP_METHODS = ['GET','POST','PUT','PATCH','DELETE'];
 const EXTRACTION_SOURCES = ['BODY','HEADER','STATUS'];
 const INJECTION_TARGETS = ['HEADER','BODY_FIELD','QUERY_PARAM','PATH'];
 const CONDITION_SOURCES = ['STATUS','BODY','HEADER'];
 const CONDITION_OPS = ['EQ','NE','CONTAINS','EXISTS','EMPTY','LT_STATUS'];
-const STANDARD_HEADERS = ['Authorization','Content-Type','Accept','X-Api-Key','X-Auth-Token','X-Tenant-ID','X-Request-ID'];
 
 let stepCount = 0;
 
-function sel(options, selected, cls) {
-    return '<select class="wf-input ' + (cls||'') + '" style="width:auto;flex:0 0 auto">' +
-        options.map(o => '<option' + (o === selected ? ' selected' : '') + '>' + o + '</option>').join('') + '</select>';
+function makeSel(opts, selected, cls) {
+    const s = document.createElement('select');
+    s.className = 'wf-input ' + (cls || '');
+    s.style.cssText = 'width:auto;flex:0 0 auto';
+    opts.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o; opt.textContent = o;
+        if (o === selected) opt.selected = true;
+        s.appendChild(opt);
+    });
+    return s;
+}
+function makeInput(cls, placeholder, value, style) {
+    const i = document.createElement('input');
+    i.className = 'wf-input ' + (cls || '');
+    i.placeholder = placeholder || '';
+    i.value = value || '';
+    if (style) i.style.cssText = style;
+    return i;
+}
+function makeTd(el) { const d = document.createElement('div'); if (el) d.appendChild(el); return d; }
+function makeBtn(text, cls, onClick) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = cls || 'btn-disable';
+    b.textContent = text; b.style.cssText = 'padding:3px 8px;font-size:12px';
+    b.onclick = onClick; return b;
+}
+function makeSpan(text, style) {
+    const s = document.createElement('span');
+    s.textContent = text; if (style) s.style.cssText = style; return s;
+}
+function makeLabel(text, style) {
+    const l = document.createElement('div');
+    l.className = 'section-label'; l.textContent = text;
+    if (style) l.style.cssText = style; return l;
 }
 
 function addStep(existing) {
     stepCount++;
-    const id = existing?.stepId || ('new-step-' + stepCount);
+    const id = existing && existing.stepId ? existing.stepId : ('new-step-' + stepCount);
     const box = document.createElement('div');
-    box.className = 'step-box';
-    box.dataset.stepId = id;
-    box.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <h4>Step ${stepCount}</h4>
-            <div style="display:flex;gap:6px">
-                <button type="button" class="btn-action" style="padding:3px 8px;font-size:12px" onclick="moveStep(this,-1)">↑</button>
-                <button type="button" class="btn-action" style="padding:3px 8px;font-size:12px" onclick="moveStep(this,1)">↓</button>
-                <button type="button" class="btn-disable" style="padding:3px 8px;font-size:12px" onclick="this.closest('.step-box').remove()">✕</button>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div><span class="field-label">Step Name *</span><input class="wf-input step-name" placeholder="e.g. Login" value="${existing?.name||''}"/></div>
-            <div><span class="field-label">Method</span>${sel(HTTP_METHODS, existing?.method||'POST','step-method')}</div>
-        </div>
-        <div class="field-group"><span class="field-label">Path (supports {{vars}})</span><input class="wf-input step-path" placeholder="/api/auth/otp/request" value="${existing?.path||''}"/></div>
-        <div class="field-group"><span class="field-label">Request Body (JSON, supports {{vars}})</span><textarea class="wf-input step-body" style="min-height:64px;font-family:monospace;font-size:0.85rem">${existing?.body||''}</textarea></div>
+    box.className = 'step-box'; box.dataset.stepId = id;
 
-        <div class="section-label">Extraction Rules <button type="button" class="btn-action" style="font-size:11px;padding:2px 7px;margin-left:6px" onclick="addExtraction(this)">+ Add</button></div>
-        <div class="extractions"></div>
+    // Header row
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
+    const h4 = document.createElement('h4'); h4.textContent = 'Step ' + stepCount; h4.style.margin = '0';
+    const btnRow = document.createElement('div'); btnRow.style.cssText = 'display:flex;gap:6px';
+    btnRow.appendChild(makeBtn('↑', 'btn-action', () => moveStep(btnRow, -1)));
+    btnRow.appendChild(makeBtn('↓', 'btn-action', () => moveStep(btnRow, 1)));
+    btnRow.appendChild(makeBtn('✕', 'btn-disable', () => box.remove()));
+    hdr.append(h4, btnRow); box.appendChild(hdr);
 
-        <div class="section-label">Injection Rules <button type="button" class="btn-action" style="font-size:11px;padding:2px 7px;margin-left:6px" onclick="addInjection(this)">+ Add</button></div>
-        <div class="injections"></div>
+    // Name + Method row
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px';
+    const nameDiv = document.createElement('div');
+    const nameLabel = document.createElement('span'); nameLabel.className = 'field-label'; nameLabel.textContent = 'Step Name *';
+    const nameInput = makeInput('step-name', 'e.g. Login', existing && existing.name ? existing.name : '', '');
+    nameDiv.append(nameLabel, nameInput);
+    const methodDiv = document.createElement('div');
+    const methodLabel = document.createElement('span'); methodLabel.className = 'field-label'; methodLabel.textContent = 'Method';
+    const methodSel = makeSel(HTTP_METHODS, existing && existing.method ? existing.method : 'POST', 'step-method');
+    methodDiv.append(methodLabel, methodSel);
+    grid.append(nameDiv, methodDiv); box.appendChild(grid);
 
-        <div class="section-label">Conditions <button type="button" class="btn-action" style="font-size:11px;padding:2px 7px;margin-left:6px" onclick="addCondition(this)">+ Add</button></div>
-        <div class="conditions"></div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px">
-            <input type="checkbox" class="step-halt" id="halt-${id}" ${existing?.haltOnConditionFailure?'checked':''}/>
-            <label for="halt-${id}">Halt workflow if any condition fails</label>
-        </div>`;
+    // Path
+    const pathDiv = document.createElement('div'); pathDiv.className = 'field-group';
+    const pathLabel = document.createElement('span'); pathLabel.className = 'field-label'; pathLabel.textContent = 'Path (supports {{vars}})';
+    const pathInput = makeInput('step-path', '/api/auth/otp/request', existing && existing.path ? existing.path : '', '');
+    pathDiv.append(pathLabel, pathInput); box.appendChild(pathDiv);
+
+    // Body
+    const bodyDiv = document.createElement('div'); bodyDiv.className = 'field-group';
+    const bodyLabel = document.createElement('span'); bodyLabel.className = 'field-label'; bodyLabel.textContent = 'Request Body (JSON, supports {{vars}})';
+    const bodyArea = document.createElement('textarea');
+    bodyArea.className = 'wf-input step-body'; bodyArea.style.cssText = 'min-height:64px;font-family:monospace;font-size:0.85rem';
+    bodyArea.value = (existing && existing.body) ? existing.body : '';
+    bodyDiv.append(bodyLabel, bodyArea); box.appendChild(bodyDiv);
+
+    // Extractions
+    const exLabel = makeLabel('Extraction Rules');
+    const exAddBtn = makeBtn('+ Add', 'btn-action', () => addExtraction(exContainer));
+    exAddBtn.style.cssText = 'font-size:11px;padding:2px 7px;margin-left:6px';
+    const exRow = document.createElement('div'); exRow.style.cssText = 'display:flex;align-items:center';
+    exRow.append(exLabel, exAddBtn); box.appendChild(exRow);
+    const exContainer = document.createElement('div'); exContainer.className = 'extractions'; box.appendChild(exContainer);
+
+    // Injections
+    const injLabel = makeLabel('Injection Rules');
+    const injAddBtn = makeBtn('+ Add', 'btn-action', () => addInjection(injContainer));
+    injAddBtn.style.cssText = 'font-size:11px;padding:2px 7px;margin-left:6px';
+    const injRow = document.createElement('div'); injRow.style.cssText = 'display:flex;align-items:center';
+    injRow.append(injLabel, injAddBtn); box.appendChild(injRow);
+    const injContainer = document.createElement('div'); injContainer.className = 'injections'; box.appendChild(injContainer);
+
+    // Conditions
+    const condLabel = makeLabel('Conditions');
+    const condAddBtn = makeBtn('+ Add', 'btn-action', () => addCondition(condContainer));
+    condAddBtn.style.cssText = 'font-size:11px;padding:2px 7px;margin-left:6px';
+    const condRow = document.createElement('div'); condRow.style.cssText = 'display:flex;align-items:center';
+    condRow.append(condLabel, condAddBtn); box.appendChild(condRow);
+    const condContainer = document.createElement('div'); condContainer.className = 'conditions'; box.appendChild(condContainer);
+
+    // Halt checkbox
+    const haltRow = document.createElement('div'); haltRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px';
+    const haltCb = document.createElement('input'); haltCb.type = 'checkbox'; haltCb.className = 'step-halt';
+    haltCb.checked = !!(existing && existing.haltOnConditionFailure);
+    haltCb.id = 'halt-' + id;
+    const haltLbl = document.createElement('label'); haltLbl.htmlFor = 'halt-' + id;
+    haltLbl.textContent = 'Halt workflow if any condition fails';
+    haltRow.append(haltCb, haltLbl); box.appendChild(haltRow);
 
     document.getElementById('steps-container').appendChild(box);
-    // Populate existing rules
-    if (existing?.extractions) existing.extractions.forEach(e => addExtraction(box.querySelector('.extractions'), e));
-    if (existing?.injections) existing.injections.forEach(i => addInjection(box.querySelector('.injections'), i));
-    if (existing?.conditions) existing.conditions.forEach(c => addCondition(box.querySelector('.conditions'), c));
+
+    if (existing && existing.extractions) existing.extractions.forEach(e => addExtraction(exContainer, e));
+    if (existing && existing.injections) existing.injections.forEach(i => addInjection(injContainer, i));
+    if (existing && existing.conditions) existing.conditions.forEach(c => addCondition(condContainer, c));
     renumberSteps();
 }
 
-function addExtraction(triggerOrContainer, existing) {
-    const container = triggerOrContainer instanceof Element && triggerOrContainer.classList.contains('extractions')
-        ? triggerOrContainer : triggerOrContainer.closest('.step-box').querySelector('.extractions');
+function addExtraction(container, existing) {
+    if (container instanceof Element && !container.classList.contains('extractions'))
+        container = container.closest('.step-box').querySelector('.extractions');
     const row = document.createElement('div'); row.className = 'rule-editor extraction-row';
-    row.innerHTML = `<input class="wf-input ex-var" style="width:160px;flex:0 0 auto" placeholder="variableName" value="${existing?.variableName||''}"/>
-        ${sel(EXTRACTION_SOURCES, existing?.source||'BODY','ex-source')}
-        <input class="wf-input ex-locator" style="flex:1;min-width:120px" placeholder="$.data.token or header-name" value="${existing?.locator||''}"/>
-        <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" class="ex-secret" ${existing?.secret?'checked'}/> secret</label>
-        <button type="button" class="btn-disable" style="padding:3px 8px;font-size:11px" onclick="this.closest('.extraction-row').remove()">✕</button>`;
+    const varInput = makeInput('ex-var', 'variableName', existing && existing.variableName ? existing.variableName : '', 'width:160px;flex:0 0 auto');
+    const srcSel = makeSel(EXTRACTION_SOURCES, existing && existing.source ? existing.source : 'BODY', 'ex-source');
+    const locInput = makeInput('ex-locator', '$.data.token or header-name', existing && existing.locator ? existing.locator : '', 'flex:1;min-width:120px');
+    const secLabel = document.createElement('label'); secLabel.style.cssText = 'font-size:12px;display:flex;align-items:center;gap:4px';
+    const secCb = document.createElement('input'); secCb.type = 'checkbox'; secCb.className = 'ex-secret';
+    secCb.checked = !!(existing && existing.secret);
+    secLabel.append(secCb, document.createTextNode(' secret'));
+    const delBtn = makeBtn('✕', 'btn-disable', () => row.remove()); delBtn.style.cssText = 'padding:3px 8px;font-size:11px';
+    row.append(varInput, srcSel, locInput, secLabel, delBtn);
     container.appendChild(row);
 }
 
-function addInjection(triggerOrContainer, existing) {
-    const container = triggerOrContainer instanceof Element && triggerOrContainer.classList.contains('injections')
-        ? triggerOrContainer : triggerOrContainer.closest('.step-box').querySelector('.injections');
+function addInjection(container, existing) {
+    if (container instanceof Element && !container.classList.contains('injections'))
+        container = container.closest('.step-box').querySelector('.injections');
     const row = document.createElement('div'); row.className = 'rule-editor injection-row';
-    row.innerHTML = `<input class="wf-input inj-ref" style="flex:1;min-width:140px" placeholder="{{step1.authToken}}" value="${existing?.variableRef||''}"/>
-        <span style="color:var(--neutral-400)">→</span>
-        ${sel(INJECTION_TARGETS, existing?.target||'HEADER','inj-target')}
-        <input class="wf-input inj-key" style="width:160px;flex:0 0 auto" placeholder="Header name or field" value="${existing?.targetKey||''}"/>
-        <button type="button" class="btn-disable" style="padding:3px 8px;font-size:11px" onclick="this.closest('.injection-row').remove()">✕</button>`;
+    const refInput = makeInput('inj-ref', '{{step1.authToken}}', existing && existing.variableRef ? existing.variableRef : '', 'flex:1;min-width:140px');
+    const arrow = makeSpan('→', 'color:var(--neutral-400)');
+    const tgtSel = makeSel(INJECTION_TARGETS, existing && existing.target ? existing.target : 'HEADER', 'inj-target');
+    const keyInput = makeInput('inj-key', 'Header name or field', existing && existing.targetKey ? existing.targetKey : '', 'width:160px;flex:0 0 auto');
+    const delBtn = makeBtn('✕', 'btn-disable', () => row.remove()); delBtn.style.cssText = 'padding:3px 8px;font-size:11px';
+    row.append(refInput, arrow, tgtSel, keyInput, delBtn);
     container.appendChild(row);
 }
 
-function addCondition(triggerOrContainer, existing) {
-    const container = triggerOrContainer instanceof Element && triggerOrContainer.classList.contains('conditions')
-        ? triggerOrContainer : triggerOrContainer.closest('.step-box').querySelector('.conditions');
+function addCondition(container, existing) {
+    if (container instanceof Element && !container.classList.contains('conditions'))
+        container = container.closest('.step-box').querySelector('.conditions');
     const row = document.createElement('div'); row.className = 'rule-editor condition-row';
-    row.innerHTML = `<span style="font-size:12px;color:var(--neutral-400)">IF</span>
-        <input class="wf-input cond-step" style="width:120px;flex:0 0 auto" placeholder="source step ID" value="${existing?.sourceStepId||''}"/>
-        ${sel(CONDITION_SOURCES, existing?.source||'STATUS','cond-source')}
-        <input class="wf-input cond-locator" style="flex:1;min-width:100px" placeholder="$.field or header-name" value="${existing?.locator||''}"/>
-        ${sel(CONDITION_OPS, existing?.operator||'EQ','cond-op')}
-        <input class="wf-input cond-expected" style="width:90px;flex:0 0 auto" placeholder="200" value="${existing?.expectedValue||''}"/>
-        <button type="button" class="btn-disable" style="padding:3px 8px;font-size:11px" onclick="this.closest('.condition-row').remove()">✕</button>`;
+    const ifSpan = makeSpan('IF', 'font-size:12px;color:var(--neutral-400)');
+    const stepInput = makeInput('cond-step', 'source step ID', existing && existing.sourceStepId ? existing.sourceStepId : '', 'width:120px;flex:0 0 auto');
+    const srcSel = makeSel(CONDITION_SOURCES, existing && existing.source ? existing.source : 'STATUS', 'cond-source');
+    const locInput = makeInput('cond-locator', '$.field or header-name', existing && existing.locator ? existing.locator : '', 'flex:1;min-width:100px');
+    const opSel = makeSel(CONDITION_OPS, existing && existing.operator ? existing.operator : 'EQ', 'cond-op');
+    const expInput = makeInput('cond-expected', '200', existing && existing.expectedValue ? existing.expectedValue : '', 'width:90px;flex:0 0 auto');
+    const delBtn = makeBtn('✕', 'btn-disable', () => row.remove()); delBtn.style.cssText = 'padding:3px 8px;font-size:11px';
+    row.append(ifSpan, stepInput, srcSel, locInput, opSel, expInput, delBtn);
     container.appendChild(row);
 }
 
 function addVar() {
     const row = document.createElement('div'); row.className = 'rule-editor wf-var-row';
-    row.innerHTML = `<input class="wf-input var-key" style="width:180px;flex:0 0 auto" placeholder="variableName" />
-        <span style="color:var(--neutral-400)">=</span>
-        <input class="wf-input var-val" style="flex:1" placeholder="value" />
-        <button type="button" class="btn-disable" style="padding:4px 8px" onclick="this.closest('.wf-var-row').remove()">✕</button>`;
+    const keyInput = makeInput('var-key', 'variableName', '', 'width:180px;flex:0 0 auto');
+    const eq = makeSpan('=', 'color:var(--neutral-400)');
+    const valInput = makeInput('var-val', 'value', '', 'flex:1');
+    const delBtn = makeBtn('✕', 'btn-disable', () => row.remove()); delBtn.style.cssText = 'padding:4px 8px';
+    row.append(keyInput, eq, valInput, delBtn);
     document.getElementById('wf-vars-list').appendChild(row);
 }
 
-function moveStep(btn, dir) {
-    const box = btn.closest('.step-box');
+function moveStep(btnInHeader, dir) {
+    const box = btnInHeader.closest('.step-box');
     const container = document.getElementById('steps-container');
     const steps = [...container.children];
     const idx = steps.indexOf(box);
@@ -212,9 +288,7 @@ function collectWorkflow() {
         method: box.querySelector('.step-method').value,
         path: box.querySelector('.step-path').value.trim(),
         body: box.querySelector('.step-body').value.trim() || null,
-        headers: {},
-        queryParams: {},
-        timeoutMs: 10000,
+        headers: {}, queryParams: {}, timeoutMs: 10000,
         haltOnConditionFailure: box.querySelector('.step-halt').checked,
         extractions: [...box.querySelectorAll('.extraction-row')].map(r => ({
             variableName: r.querySelector('.ex-var').value.trim(),
@@ -235,12 +309,7 @@ function collectWorkflow() {
             expectedValue: r.querySelector('.cond-expected').value.trim() || null
         })).filter(c => c.sourceStepId)
     }));
-    return {
-        name: document.getElementById('wf-name').value.trim(),
-        description: document.getElementById('wf-desc').value.trim() || null,
-        baseUrl: document.getElementById('wf-baseurl').value.trim() || null,
-        variables: vars, steps
-    };
+    return { name: document.getElementById('wf-name').value.trim(), description: document.getElementById('wf-desc').value.trim() || null, baseUrl: document.getElementById('wf-baseurl').value.trim() || null, variables: vars, steps };
 }
 
 function saveWorkflow() {
@@ -252,16 +321,26 @@ function saveWorkflow() {
     const method = WORKFLOW_ID ? 'PUT' : 'POST';
     fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
-        .then(wf => { msg.textContent = '✓ Saved!'; msg.className = 'msg-ok'; setTimeout(() => location.href = '/workflows/' + wf.workflowId, 800); })
-        .catch(err => { msg.textContent = '✗ ' + (err || 'Save failed'); msg.className = 'msg-err'; });
+        .then(wf => { msg.textContent = 'Saved!'; msg.className = 'msg-ok'; setTimeout(() => location.href = '/workflows/' + wf.workflowId, 800); })
+        .catch(err => { msg.textContent = 'Error: ' + (err || 'Save failed'); msg.className = 'msg-err'; });
 }
 
-// Init: load existing steps if editing
-if (EXISTING_STEPS && EXISTING_STEPS.length) {
-    EXISTING_STEPS.forEach(s => addStep(s));
-} else {
-    addStep(); // start with one empty step
-}
+// Init after DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+    if (EXISTING_VARS && typeof EXISTING_VARS === 'object') {
+        Object.entries(EXISTING_VARS).forEach(([k, v]) => {
+            const row = document.createElement('div'); row.className = 'rule-editor wf-var-row';
+            const ki = makeInput('var-key','variableName', k, 'width:180px;flex:0 0 auto');
+            const eq = makeSpan('=','color:var(--neutral-400)');
+            const vi = makeInput('var-val','value', v||'', 'flex:1');
+            const db = makeBtn('✕','btn-disable', () => row.remove()); db.style.cssText = 'padding:4px 8px';
+            row.append(ki, eq, vi, db);
+            document.getElementById('wf-vars-list').appendChild(row);
+        });
+    }
+    if (EXISTING_STEPS && EXISTING_STEPS.length) EXISTING_STEPS.forEach(s => addStep(s));
+    else addStep();
+});
 </script>
 <script>
 const themeToggle = document.getElementById('theme-toggle');
