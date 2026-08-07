@@ -21,13 +21,13 @@
 
     <section class="card">
         <h2>Generate Plans from Spec</h2>
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-            <select id="gen-spec-select" required style="flex:2;min-width:200px;max-width:500px;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;background:var(--card-bg);color:var(--text-color)">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center">
+            <select id="gen-spec-select" required style="padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;background:var(--card-bg);color:var(--text-color);width:100%">
                 <option value="" disabled selected>— select a spec —</option>
                 <option th:each="spec : ${specs}" th:value="${spec.specId}"
                     th:text="${spec.name} + ' — ' + ${spec.endpoints != null ? spec.endpoints.size() : 0} + ' endpoints'" />
             </select>
-            <button id="btn-generate-all" class="btn-run" type="button" style="flex:0 0 auto;white-space:nowrap">&#9889; Generate All Plans</button>
+            <button id="btn-generate-all" class="btn-run" type="button" style="white-space:nowrap">&#9889; Generate All Plans</button>
         </div>
         <div style="margin-top:8px;min-height:20px"><span id="gen-msg" style="font-size:14px"></span></div>
         <script>
@@ -65,13 +65,20 @@
             <button class="btn-disable" onclick="clearAllPlans()" style="font-size:13px">&#128465; Clear All Plans</button>
         </div>
         <div style="overflow-x:auto">
-        <table>
+        <table style="table-layout:fixed;width:100%">
+            <colgroup>
+                <col style="width:140px">
+                <col style="width:280px">
+                <col style="width:180px">
+                <col style="width:90px">
+                <col style="width:220px">
+            </colgroup>
             <thead><tr><th>Plan ID</th><th>Source Endpoint</th><th>Base URL</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
             <tr th:each="plan : ${plans}">
-                <td th:text="${plan.planId}">plan-id</td>
-                <td th:text="${plan.sourceEndpoint}">endpoint</td>
-                <td th:text="${plan.baseUrl}">url</td>
+                <td style="font-family:monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" th:text="${plan.planId}">plan-id</td>
+                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" th:title="${plan.sourceEndpoint}" th:text="${plan.sourceEndpoint}">endpoint</td>
+                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" th:title="${plan.baseUrl}" th:text="${plan.baseUrl}">url</td>
                 <td><span class="badge" th:classappend="${plan.status == 'active'} ? 'badge-ok' : 'badge-off'" th:text="${plan.status}">status</span></td>
                 <td class="actions">
                     <a th:href="'/plans/' + ${plan.planId}" class="btn-view">Details</a>
