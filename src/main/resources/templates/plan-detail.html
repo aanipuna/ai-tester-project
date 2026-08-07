@@ -23,6 +23,26 @@
         body.dark-mode .edit-select { background:rgba(30, 41, 59, 0.8); border-color:#334155; }
         body.dark-mode .edit-area { background:rgba(30, 41, 59, 0.8); border-color:#334155; }
         body.dark-mode .save-bar { background:rgba(30, 41, 59, 0.8); border-top-color:#334155; }
+
+        /* Responsive test case cards */
+        .tc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px; }
+        .tc-card { background:rgba(255,255,255,0.6); border:1px solid var(--card-border); border-radius:12px; padding:16px; transition:box-shadow 0.2s; }
+        .tc-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+        body.dark-mode .tc-card { background:rgba(30,41,59,0.5); }
+        .tc-card.disabled { opacity:0.5; }
+        .tc-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+        .tc-id { font-size:12px; font-weight:700; color:var(--neutral-500); font-family:monospace; }
+        .tc-desc { font-size:14px; font-weight:600; color:var(--text-color); line-height:1.4; margin-bottom:10px; }
+        .tc-meta { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+        .tc-endpoint { font-size:13px; font-family:monospace; background:var(--neutral-100); padding:4px 8px; border-radius:6px; color:var(--neutral-700); }
+        body.dark-mode .tc-endpoint { background:rgba(51,65,85,0.6); color:#cbd5e1; }
+        .tc-body-label { font-size:11px; font-weight:600; color:var(--neutral-500); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+        .tc-body { font-size:12px; font-family:monospace; background:var(--neutral-100); padding:8px 10px; border-radius:6px; white-space:pre-wrap; word-break:break-all; color:var(--neutral-800); max-height:100px; overflow-y:auto; border:1px solid var(--neutral-200); }
+        body.dark-mode .tc-body { background:rgba(15,23,42,0.6); color:#e2e8f0; border-color:#334155; }
+        .tc-footer { display:flex; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap; gap:6px; }
+        .tc-status-badge { font-size:12px; font-weight:600; padding:3px 8px; border-radius:20px; background:var(--neutral-100); color:var(--neutral-700); }
+        body.dark-mode .tc-status-badge { background:rgba(51,65,85,0.6); color:#cbd5e1; }
+        @media (max-width: 640px) { .tc-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -64,38 +84,37 @@
         </div>
     </section>
 
-    <!-- VIEW mode table -->
+    <!-- VIEW mode cards -->
     <section class="card" id="view-mode">
         <h2>Test Cases</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th><th>Category</th><th>Method</th><th>Path</th>
-                    <th>Exp&nbsp;Status</th><th>Description</th><th>Body</th>
-                    <th>Timeout&nbsp;(ms)</th><th>Enabled</th><th>Toggle</th>
-                </tr>
-            </thead>
-            <tbody>
-            <tr th:each="tc : ${plan.testCases}" th:classappend="${!tc.enabled} ? 'row-disabled'">
-                <td th:text="${tc.id}">-</td>
-                <td><span class="badge badge-cat" th:text="${tc.category}">-</span></td>
-                <td><code th:text="${tc.request?.method}">GET</code></td>
-                <td><code th:text="${tc.request?.path}">/</code></td>
-                <td th:text="${tc.expectedStatus}">200</td>
-                <td th:text="${tc.description}">-</td>
-                <td class="snippet" th:text="${tc.request?.body}">-</td>
-                <td th:text="${tc.timeoutMs}">10000</td>
-                <td><span class="badge" th:classappend="${tc.enabled} ? 'badge-ok' : 'badge-off'"
-                          th:text="${tc.enabled} ? 'yes' : 'no'">-</span></td>
-                <td>
-                    <form th:action="'/ui/plans/' + ${plan.planId} + '/cases/' + ${tc.id} + '/toggle'" method="post" style="display:inline">
-                        <button type="submit" th:class="${tc.enabled} ? 'btn-disable' : 'btn-enable'"
-                                th:text="${tc.enabled} ? 'Disable' : 'Enable'">Toggle</button>
-                    </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="tc-grid">
+        <div th:each="tc : ${plan.testCases}" th:class="${tc.enabled} ? 'tc-card' : 'tc-card disabled'">
+            <div class="tc-header">
+                <span class="tc-id" th:text="${tc.id}">TC-001</span>
+                <span class="badge badge-cat" th:text="${tc.category}">positive</span>
+                <span class="badge"
+                      th:classappend="${tc.enabled} ? 'badge-ok' : 'badge-off'"
+                      th:text="${tc.enabled} ? 'enabled' : 'disabled'">-</span>
+            </div>
+            <div class="tc-desc" th:text="${tc.description}">Description</div>
+            <div class="tc-meta">
+                <code th:text="${tc.request?.method}" class="badge badge-cat" style="font-family:monospace">GET</code>
+                <span class="tc-endpoint" th:text="${tc.request?.path}">/</span>
+                <span class="tc-status-badge">&#10004; <span th:text="${tc.expectedStatus}">200</span></span>
+            </div>
+            <div th:if="${tc.request?.body != null and !#strings.isEmpty(tc.request?.body)}">
+                <div class="tc-body-label">Request Body</div>
+                <pre class="tc-body" th:text="${tc.request?.body}"></pre>
+            </div>
+            <div class="tc-footer">
+                <span style="font-size:12px;color:var(--neutral-400)">Timeout: <span th:text="${tc.timeoutMs}">10000</span> ms</span>
+                <form th:action="'/ui/plans/' + ${plan.planId} + '/cases/' + ${tc.id} + '/toggle'" method="post" style="display:inline">
+                    <button type="submit" th:class="${tc.enabled} ? 'btn-disable' : 'btn-enable'"
+                            th:text="${tc.enabled} ? 'Disable' : 'Enable'">Toggle</button>
+                </form>
+            </div>
+        </div>
+        </div>
     </section>
 
     <!-- EDIT mode -->
