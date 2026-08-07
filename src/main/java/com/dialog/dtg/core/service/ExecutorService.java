@@ -72,6 +72,7 @@ public class ExecutorService implements Executor {
         CaseResult result = new CaseResult();
         result.setTestCaseId(tc.getId());
         result.setCategory(tc.getCategory());
+        result.setDescription(tc.getDescription());
 
         long start = System.currentTimeMillis();
         try {

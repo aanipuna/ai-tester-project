@@ -7,6 +7,7 @@ public class CaseResult {
 
     private String testCaseId;
     private String category;
+    private String description;
     private String status;
     private Integer httpStatus;
     private Long responseTimeMs;
@@ -30,6 +31,14 @@ public class CaseResult {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public String getStatus() {
