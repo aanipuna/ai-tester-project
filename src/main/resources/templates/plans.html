@@ -21,17 +21,15 @@
 
     <section class="card">
         <h2>Generate Plans from Spec</h2>
-        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-            <label style="flex:1;min-width:200px">Spec
-                <select id="gen-spec-select" required>
-                    <option value="" disabled selected>— select a spec —</option>
-                    <option th:each="spec : ${specs}" th:value="${spec.specId}"
-                        th:text="${spec.name} + ' — ' + ${spec.endpoints != null ? spec.endpoints.size() : 0} + ' endpoints'" />
-                </select>
-            </label>
-            <button id="btn-generate-all" class="btn-run" type="button">&#9889; Generate All Plans</button>
-            <span id="gen-msg" style="font-size:14px"></span>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <select id="gen-spec-select" required style="flex:2;min-width:200px;max-width:500px;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;background:var(--card-bg);color:var(--text-color)">
+                <option value="" disabled selected>— select a spec —</option>
+                <option th:each="spec : ${specs}" th:value="${spec.specId}"
+                    th:text="${spec.name} + ' — ' + ${spec.endpoints != null ? spec.endpoints.size() : 0} + ' endpoints'" />
+            </select>
+            <button id="btn-generate-all" class="btn-run" type="button" style="flex:0 0 auto;white-space:nowrap">&#9889; Generate All Plans</button>
         </div>
+        <div style="margin-top:8px;min-height:20px"><span id="gen-msg" style="font-size:14px"></span></div>
         <script>
         document.getElementById('btn-generate-all').addEventListener('click', function() {
             const specId = document.getElementById('gen-spec-select').value;
@@ -66,6 +64,7 @@
             <span id="plan-count" style="font-size:13px;color:var(--neutral-500)" th:text="${plans.size()} + ' plan(s)'"></span>
             <button class="btn-disable" onclick="clearAllPlans()" style="font-size:13px">&#128465; Clear All Plans</button>
         </div>
+        <div style="overflow-x:auto">
         <table>
             <thead><tr><th>Plan ID</th><th>Source Endpoint</th><th>Base URL</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
@@ -87,6 +86,7 @@
             </tr>
             </tbody>
         </table>
+        </div>
     </section>
 </div>
 <script>
