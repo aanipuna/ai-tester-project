@@ -77,17 +77,30 @@ public class ExecutorService implements Executor {
         try {
             String uri = baseUrl + tc.getRequest().getPath();
             String reqBody = tc.getRequest().getBody() == null ? "" : tc.getRequest().getBody().toString();
-            result.setRequestUrl(tc.getRequest().getMethod() + " " + uri);
+            String method = tc.getRequest().getMethod();
+            result.setRequestUrl(method + " " + uri);
             result.setRequestBody(reqBody.isBlank() ? null : reqBody);
-            int status = webClient.method(HttpMethod.valueOf(tc.getRequest().getMethod()))
+
+            boolean hasBody = !reqBody.isBlank() && !method.equalsIgnoreCase("GET")
+                    && !method.equalsIgnoreCase("HEAD") && !method.equalsIgnoreCase("DELETE");
+
+            var spec = webClient.method(HttpMethod.valueOf(method))
                 .uri(uri)
-                .contentType(MediaType.APPLICATION_JSON)
-                .headers(headers -> headers.setAll(tc.getRequest().getHeaders()))
-                .bodyValue(reqBody)
-                .exchangeToMono(r -> r.bodyToMono(String.class).map(body -> {
-                    result.setResponseSnapshot(body);
-                    return r.statusCode().value();
-                }))
+                .headers(headers -> {
+                    headers.setAll(tc.getRequest().getHeaders());
+                    if (hasBody) headers.setContentType(MediaType.APPLICATION_JSON);
+                });
+
+            // Capture status code before body Mono to avoid null when body is empty
+            int status = spec.exchangeToMono(r -> {
+                    int code = r.statusCode().value();
+                    return r.bodyToMono(String.class)
+                            .defaultIfEmpty("")
+                            .map(body -> {
+                                result.setResponseSnapshot(body.isBlank() ? null : body);
+                                return code;
+                            });
+                })
                 .block();
 
             long elapsed = System.currentTimeMillis() - start;
