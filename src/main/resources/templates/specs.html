@@ -51,7 +51,7 @@
                 <td th:text="${spec.importedAt}">-</td>
                 <td>
                     <div class="actions">
-                    <button class="btn-run" onclick="generateAll(this, '[[${spec.specId}]]')">&#9889; Generate Plans</button>
+                    <button class="btn-run" th:data-specid="${spec.specId}" onclick="generateAll(this, this.dataset.specid)">&#9889; Generate Plans</button>
                     <form th:action="'/ui/specs/' + ${spec.specId} + '/delete'" method="post" style="display:contents"
                           onsubmit="return confirm('Delete this spec?')">
                         <button type="submit" class="btn-disable">&#128465; Delete</button>
