@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class WorkflowService {
 
@@ -77,6 +79,27 @@ public class WorkflowService {
         }
         TestPlan created = planStore.create(plan);
         log.info("Created plan planId={} sourceSpecId={}", created.getPlanId(), created.getSourceSpecId());
+        return created;
+    }
+
+    public List<TestPlan> generateAllPlansFromSpec(NormalizedSpec spec) {
+        log.info("Generating plans for all {} endpoints in specId={}", spec.getEndpoints().size(), spec.getSpecId());
+        List<TestPlan> created = new java.util.ArrayList<>();
+        for (EndpointSpec endpoint : spec.getEndpoints()) {
+            try {
+                TestPlan plan = scenarioGenerator.generatePlan(endpoint);
+                plan.setSourceSpecId(spec.getSpecId());
+                plan.setBaseUrl(spec.getBaseUrl());
+                if (plan.getSourceEndpoint() == null) {
+                    plan.setSourceEndpoint(endpoint.getMethod() + " " + endpoint.getPath());
+                }
+                plan.setCreatedBy("generated");
+                created.add(planStore.create(plan));
+            } catch (Exception ex) {
+                log.warn("Skipping endpoint {} {}: {}", endpoint.getMethod(), endpoint.getPath(), ex.getMessage());
+            }
+        }
+        log.info("Created {} plans for specId={}", created.size(), spec.getSpecId());
         return created;
     }
 

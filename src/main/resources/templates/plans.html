@@ -25,10 +25,15 @@
             <label>Spec
                 <select id="gen-spec-select" required>
                     <option value="" disabled selected>— select a spec —</option>
-                    <option th:each="spec : ${specs}" th:value="${spec.specId}" th:text="${spec.name} + ' (' + ${spec.specId} + ')'" />
+                    <option th:each="spec : ${specs}" th:value="${spec.specId}"
+                        th:text="${spec.name} + ' (' + ${spec.specId} + ') — ' + ${spec.endpoints != null ? spec.endpoints.size() : 0} + ' endpoints'" />
                 </select>
             </label>
-            <button type="submit" class="btn-action">Generate Plan</button>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+                <button type="submit" class="btn-action">Generate Plan</button>
+                <button type="button" id="btn-generate-all" class="btn-run">&#9889; Generate All Plans</button>
+                <span id="gen-msg" style="font-size:14px"></span>
+            </div>
         </form>
         <script>
         document.getElementById('gen-form').addEventListener('submit', function(e) {
@@ -38,6 +43,32 @@
             fetch('/api/plans', { method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({mode:'generate', specId: specId}) })
             .then(r => r.ok ? location.reload() : r.text().then(t => alert('Error: ' + t)));
+        });
+
+        document.getElementById('btn-generate-all').addEventListener('click', function() {
+            const specId = document.getElementById('gen-spec-select').value;
+            if (!specId) { alert('Please select a spec first.'); return; }
+            const btn = this;
+            const msg = document.getElementById('gen-msg');
+            if (!confirm('This will generate one test plan for every endpoint in the spec. Continue?')) return;
+            btn.disabled = true;
+            btn.textContent = '⏳ Generating…';
+            msg.textContent = 'This may take a while for large specs…';
+            msg.style.color = 'var(--neutral-500)';
+            fetch('/api/plans/generate-all', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({specId: specId}) })
+            .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+            .then(data => {
+                msg.textContent = '✓ Generated ' + data.generated + ' plans!';
+                msg.style.color = 'var(--success)';
+                setTimeout(() => location.reload(), 1500);
+            })
+            .catch(err => {
+                msg.textContent = '✗ ' + (err || 'Failed');
+                msg.style.color = 'var(--danger)';
+                btn.disabled = false;
+                btn.textContent = '⚡ Generate All Plans';
+            });
         });
         </script>
     </section>
