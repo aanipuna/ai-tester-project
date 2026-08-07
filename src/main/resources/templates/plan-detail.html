@@ -6,15 +6,22 @@
     <title th:text="'Plan ' + ${plan.planId}">Plan Detail</title>
     <link rel="stylesheet" href="/styles.css" />
     <style>
-        .edit-input  { width:100%; padding:4px 6px; border:1px solid #d3d8da; border-radius:4px; font-size:0.85rem; }
-        .edit-select { padding:4px 6px; border:1px solid #d3d8da; border-radius:4px; font-size:0.85rem; }
-        .edit-area   { width:100%; min-height:48px; padding:4px 6px; border:1px solid #d3d8da; border-radius:4px; font-size:0.8rem; font-family:monospace; resize:vertical; }
-        .toolbar     { display:flex; gap:8px; margin-top:12px; align-items:center; }
+        .edit-input  { width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.9rem; background:var(--card-bg); color:var(--text-color); transition:border-color 0.2s; }
+        .edit-input:focus { outline:none; border-color:var(--primary); }
+        .edit-select { padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.9rem; background:var(--card-bg); color:var(--text-color); cursor:pointer; transition:border-color 0.2s; }
+        .edit-select:focus { outline:none; border-color:var(--primary); }
+        .edit-area   { width:100%; min-height:48px; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.85rem; font-family:monospace; resize:vertical; background:var(--card-bg); color:var(--text-color); transition:border-color 0.2s; }
+        .edit-area:focus { outline:none; border-color:var(--primary); }
+        .toolbar     { display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap; }
         #view-mode, #edit-mode { display:block; }
         #edit-mode   { display:none; }
-        .save-bar    { position:sticky; bottom:0; background:#fff; border-top:1px solid #d3d8da; padding:12px 0; display:flex; gap:8px; }
-        .msg-ok      { color:#155724; font-weight:600; }
-        .msg-err     { color:#721c24; font-weight:600; }
+        .save-bar    { position:sticky; bottom:0; background:var(--card-bg); border-top:1px solid #d1d5db; padding:12px; display:flex; gap:8px; flex-wrap:wrap; margin-left:-24px; margin-right:-24px; margin-bottom:-24px; padding-left:24px; padding-right:24px; }
+        .msg-ok      { color:#16a34a; font-weight:600; }
+        .msg-err     { color:#dc2626; font-weight:600; }
+        body.dark-mode .edit-input { background:rgba(30, 41, 59, 0.8); border-color:#334155; }
+        body.dark-mode .edit-select { background:rgba(30, 41, 59, 0.8); border-color:#334155; }
+        body.dark-mode .edit-area { background:rgba(30, 41, 59, 0.8); border-color:#334155; }
+        body.dark-mode .save-bar { background:rgba(30, 41, 59, 0.8); border-top-color:#334155; }
     </style>
 </head>
 <body>
@@ -26,6 +33,7 @@
             <a href="/plans">Plans</a>
             <a href="/runs">Runs</a>
             <a href="/settings">Settings</a>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">🌙</button>
         </nav>
     </header>
 
@@ -93,11 +101,10 @@
     <section class="card" id="edit-mode">
         <h2>Edit Plan</h2>
 
-        <div style="margin-bottom:14px">
-            <label style="font-weight:600">Base URL
-                <input id="edit-baseUrl" class="edit-input" style="max-width:360px"
-                       th:value="${plan.baseUrl}" placeholder="https://…" />
-            </label>
+        <div style="margin-bottom:16px">
+            <label style="display:block; font-weight:600; margin-bottom:6px; color:var(--text-color)">Base URL</label>
+            <input id="edit-baseUrl" class="edit-input" style="max-width:400px"
+                   th:value="${plan.baseUrl}" placeholder="https://…" />
         </div>
 
         <div style="overflow-x:auto">
@@ -134,7 +141,37 @@
                     </select>
                 </td>
                 <td><input class="edit-input edit-path" th:value="${tc.request?.path}" style="min-width:120px" /></td>
-                <td><input type="number" class="edit-input edit-status" th:value="${tc.expectedStatus}" style="width:70px" /></td>
+                <td>
+                    <select class="edit-select edit-status" style="width:80px">
+                        <option value="100">100</option>
+                        <option value="101">101</option>
+                        <option value="200" th:selected="${tc.expectedStatus == 200}">200</option>
+                        <option value="201" th:selected="${tc.expectedStatus == 201}">201</option>
+                        <option value="202" th:selected="${tc.expectedStatus == 202}">202</option>
+                        <option value="204" th:selected="${tc.expectedStatus == 204}">204</option>
+                        <option value="206" th:selected="${tc.expectedStatus == 206}">206</option>
+                        <option value="300" th:selected="${tc.expectedStatus == 300}">300</option>
+                        <option value="301" th:selected="${tc.expectedStatus == 301}">301</option>
+                        <option value="302" th:selected="${tc.expectedStatus == 302}">302</option>
+                        <option value="303" th:selected="${tc.expectedStatus == 303}">303</option>
+                        <option value="304" th:selected="${tc.expectedStatus == 304}">304</option>
+                        <option value="307" th:selected="${tc.expectedStatus == 307}">307</option>
+                        <option value="308" th:selected="${tc.expectedStatus == 308}">308</option>
+                        <option value="400" th:selected="${tc.expectedStatus == 400}">400</option>
+                        <option value="401" th:selected="${tc.expectedStatus == 401}">401</option>
+                        <option value="403" th:selected="${tc.expectedStatus == 403}">403</option>
+                        <option value="404" th:selected="${tc.expectedStatus == 404}">404</option>
+                        <option value="405" th:selected="${tc.expectedStatus == 405}">405</option>
+                        <option value="409" th:selected="${tc.expectedStatus == 409}">409</option>
+                        <option value="410" th:selected="${tc.expectedStatus == 410}">410</option>
+                        <option value="429" th:selected="${tc.expectedStatus == 429}">429</option>
+                        <option value="500" th:selected="${tc.expectedStatus == 500}">500</option>
+                        <option value="501" th:selected="${tc.expectedStatus == 501}">501</option>
+                        <option value="502" th:selected="${tc.expectedStatus == 502}">502</option>
+                        <option value="503" th:selected="${tc.expectedStatus == 503}">503</option>
+                        <option value="504" th:selected="${tc.expectedStatus == 504}">504</option>
+                    </select>
+                </td>
                 <td><input class="edit-input edit-desc" th:value="${tc.description}" style="min-width:160px" /></td>
                 <td><textarea class="edit-area edit-body" th:text="${tc.request?.body}" style="min-width:140px"></textarea></td>
                 <td><input type="number" class="edit-input edit-timeout" th:value="${tc.timeoutMs}" style="width:80px" /></td>
@@ -209,6 +246,17 @@ function savePlan() {
     )
     .catch(e => setMsg('Error: ' + e.message, false));
 }
+</script>
+<script>
+const themeToggle = document.getElementById('theme-toggle');
+const isDarkMode = localStorage.getItem('dark-mode') === 'true';
+if (isDarkMode) { document.body.classList.add('dark-mode'); themeToggle.textContent = '☀️'; }
+themeToggle.addEventListener('click', function() {
+    document.body.classList.toggle('dark-mode');
+    const darkMode = document.body.classList.contains('dark-mode');
+    localStorage.setItem('dark-mode', darkMode);
+    themeToggle.textContent = darkMode ? '☀️' : '🌙';
+});
 </script>
 </body>
 </html>
