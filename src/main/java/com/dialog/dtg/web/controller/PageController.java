@@ -100,6 +100,11 @@ public class PageController {
         return "settings";
     }
 
+    @GetMapping("/workflows")
+    public String workflows(Model model) {
+        return "workflows";
+    }
+
     @PostMapping("/ui/specs/{specId}/generate")
     public String generatePlan(@PathVariable String specId) {
         var spec = specStore.get(specId);
